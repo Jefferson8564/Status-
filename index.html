@@ -95,11 +95,33 @@ const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 const ADMIN_NUM = "81996603348";
 
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-// user simulado — pega do localStorage se vier do cardápio
+// user — tenta 3 fontes em ordem de prioridade:
+// 1. ?phone= na URL (vindo do cardápio via botão Acompanhar)
+// 2. localStorage (mesmo navegador que usou o cardápio)
+// 3. null (pede para digitar)
 let user = null;
 try {
-    const cached = localStorage.getItem('salgados_user');
-    if (cached) user = JSON.parse(cached);
+    const _urlPhone = new URLSearchParams(window.location.search).get('phone');
+    if (_urlPhone) {
+        // Busca o cadastro completo no Supabase pelo telefone da URL
+        const _sb = window.supabase.createClient(
+            "https://vpeyqgijajywgswmezlh.supabase.co",
+            "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZwZXlxZ2lqYWp5d2dzd21lemxoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEyNTM1MDIsImV4cCI6MjA4NjgyOTUwMn0.LA5Cbof7IKWAA7l8YbCuPzANpCy0rX_Dro4l9fcDgoQ"
+        );
+        _sb.from('cadastros').select('name,phone,delivery_lat,delivery_lon,delivery_address')
+            .eq('phone', _urlPhone).maybeSingle()
+            .then(({ data }) => {
+                if (data) {
+                    user = { name: data.name, phone: data.phone };
+                    localStorage.setItem('salgados_user', JSON.stringify(user));
+                    // Reinicia o mapa agora que temos o usuário
+                    if (typeof iniciarMapa === 'function') iniciarMapa();
+                }
+            });
+    } else {
+        const cached = localStorage.getItem('salgados_user');
+        if (cached) user = JSON.parse(cached);
+    }
 } catch(e) {}
 
 // Funções mock que o código de localização usa mas não precisamos aqui
@@ -945,13 +967,30 @@ window.addEventListener('load', () => setTimeout(verificarStatusEntregadorCard, 
 
 // Auto-iniciar ao carregar
 window.addEventListener('load', () => {
-    // Abrir direto sem animação
-    setTimeout(() => {
-        _iniciarMapa();
-        _iniciarRastreamento();
-        verificarStatusEntregadorCard();
-    }, 200);
+    const _temPhone = new URLSearchParams(window.location.search).get('phone');
+    if (_temPhone) {
+        // Aguarda o Supabase retornar o cadastro antes de iniciar
+        // O callback lá em cima chama iniciarMapa() quando terminar
+        setTimeout(() => {
+            _iniciarMapa();
+            _iniciarRastreamento();
+            verificarStatusEntregadorCard();
+        }, 1200); // tempo para o fetch do Supabase completar
+    } else {
+        setTimeout(() => {
+            _iniciarMapa();
+            _iniciarRastreamento();
+            verificarStatusEntregadorCard();
+        }, 200);
+    }
 });
+
+// Chamado pelo callback do ?phone= quando o cadastro chegar
+function iniciarMapa() {
+    _iniciarMapa();
+    _iniciarRastreamento();
+    verificarStatusEntregadorCard();
+}
 
 // Back button fecha e volta
 window.addEventListener('popstate', () => {
