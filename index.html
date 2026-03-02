@@ -1102,10 +1102,19 @@ async function _renderPainelRota() {
     conteudo.innerHTML = '<div style="text-align:center;color:#aaa;font-size:13px;padding:8px 0;">Carregando...</div>';
 
     try {
-        const { data: rotas } = await sb.from('rotas')
-            .select('id,status,paradas,paradas_template,nome,hora_saida')
-            .in('status', ['criada','em_andamento'])
-            .order('hora_saida', { ascending: true });
+        // Usa a mesma janela de pedido (regra das 14h) para validar se o cliente fez pedido
+        const janela = _janelaPedido();
+        const [{ data: rotas }, { data: pedidosJanela }] = await Promise.all([
+            sb.from('rotas')
+                .select('id,status,paradas,paradas_template,nome,hora_saida')
+                .in('status', ['criada','em_andamento'])
+                .order('hora_saida', { ascending: true }),
+            sb.from('pedidos')
+                .select('customer_phone')
+                .gte('created_at', janela.inicio)
+                .lt('created_at', janela.fim)
+        ]);
+        const phonesComPedidoValido = new Set((pedidosJanela || []).map(p => p.customer_phone).filter(Boolean));
 
         if (!rotas?.length) {
             conteudo.innerHTML = '<div style="text-align:center;padding:10px 0;"><div style="font-size:28px;margin-bottom:6px;">😴</div><div style="color:#aaa;font-size:13px;">Nenhuma rota ativa no momento.</div></div>';
@@ -1116,7 +1125,8 @@ async function _renderPainelRota() {
 
         for (const rota of rotas) {
             const paradas = rota.paradas || rota.paradas_template || [];
-            const pendentes = paradas.filter(p => p.status !== 'entregue');
+            // Só conta como pendente quem fez pedido na janela correta e não foi entregue
+            const pendentes = paradas.filter(p => p.status !== 'entregue' && phonesComPedidoValido.has(p.cliente_phone));
 
             for (let i = 0; i < pendentes.length; i++) {
                 if (pendentes[i].cliente_phone === user?.phone) {
