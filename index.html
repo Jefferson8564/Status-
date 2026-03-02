@@ -218,6 +218,12 @@ function _iniciarMapa() {
         });
         // Sources para linhas da rota aleatória
         _iniciarSourcesRA();
+        // ── Moto aparece SEMPRE — começa na fábrica e atualiza quando GPS chegar
+        const lngLatFab = [FABRICA_OFFLINE[1], FABRICA_OFFLINE[0]];
+        _motoMarker = new maplibregl.Marker({ element: _elMoto(_modo3D), anchor: 'center' })
+            .setLngLat(lngLatFab)
+            .setPopup(new maplibregl.Popup().setHTML('<b>🛵 Entregador</b><br>Offline'))
+            .addTo(_mapaCliente);
         // Marcador do próprio cliente (sempre azul, sempre visível)
         _criarMarcadorEu();
     });
