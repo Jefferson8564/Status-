@@ -30,18 +30,10 @@ html, body { width:100%; height:100%; overflow:hidden; background:#0a0a0f; }
 
 <!-- ===== MODAL LOCALIZAÇÃO ENTREGADOR ===== -->
 <div id="modalLocalizacao" style="position:fixed;inset:0;z-index:4500;background:#f5f5f0;transform:translateY(0);transition:transform 0.4s cubic-bezier(0.34,1.1,0.64,1);display:flex;flex-direction:column;overflow:hidden;">
-    <!-- Header -->
-    <div style="padding:6px 18px 12px;flex-shrink:0;background:white;border-radius:0 0 22px 22px;border-bottom:1px solid rgba(0,0,0,0.08);box-shadow:0 4px 20px rgba(0,0,0,0.1);position:relative;z-index:10;">
-        <div style="width:43px;height:5px;background:rgba(0,0,0,0.1);border-radius:2px;margin:0 auto 10px;"></div>
-        <button onclick="fecharLocalizacao()" style="position:absolute;top:16px;left:14px;background:rgba(0,0,0,0.07);border:1px solid rgba(0,0,0,0.1);color:#333;width:34px;height:34px;border-radius:11px;font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;touch-action:manipulation;" ontouchstart="this.style.background='rgba(0,0,0,0.15)'" ontouchend="this.style.background='rgba(0,0,0,0.07)'">&#8249;</button>
-        <div style="text-align:center;">
-            <div style="font-size:20px;margin-bottom:2px;">🛵</div>
-            <div style="font-size:14px;font-weight:800;color:#222;letter-spacing:-0.2px;">Entregador ao Vivo</div>
-        </div>
-        <div id="mapaStatusPill" style="position:absolute;top:50%;right:14px;transform:translateY(-50%);display:flex;align-items:center;gap:5px;padding:5px 12px;border-radius:20px;background:rgba(231,76,60,0.1);border:1px solid rgba(231,76,60,0.3);">
-            <div id="mapaStatusDot" style="width:7px;height:7px;border-radius:50%;background:#e74c3c;animation:piscar 1.2s ease-in-out infinite;flex-shrink:0;"></div>
-            <span id="mapaStatusLabel" style="font-size:11px;font-weight:700;color:#e74c3c;">Offline</span>
-        </div>
+    <!-- Status pill flutuante (substitui o header) -->
+    <div id="mapaStatusPill" style="position:absolute;top:14px;right:14px;z-index:1000;display:flex;align-items:center;gap:5px;padding:5px 12px;border-radius:20px;background:rgba(10,10,15,0.85);border:1px solid rgba(231,76,60,0.3);backdrop-filter:blur(10px);">
+        <div id="mapaStatusDot" style="width:7px;height:7px;border-radius:50%;background:#e74c3c;animation:piscar 1.2s ease-in-out infinite;flex-shrink:0;"></div>
+        <span id="mapaStatusLabel" style="font-size:11px;font-weight:700;color:#e74c3c;">Offline</span>
     </div>
     <!-- Mapa -->
     <div style="flex:1;min-height:0;position:relative;">
@@ -73,18 +65,9 @@ html, body { width:100%; height:100%; overflow:hidden; background:#0a0a0f; }
         </div>
         <style>@keyframes slideUp { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }</style>
     </div>
-    <!-- Info bar -->
-    <div style="flex-shrink:0;background:white;border-top:1px solid rgba(0,0,0,0.08);padding:14px 18px;display:flex;align-items:center;justify-content:space-between;gap:12px;">
-        <div>
-            <div style="font-size:12px;color:#999;font-weight:600;margin-bottom:2px;">Última atualização</div>
-            <div id="mapaUltimaAtualizacao" style="font-size:13px;color:#222;font-weight:700;">—</div>
-        </div>
-        <div style="text-align:center;">
-            <div style="font-size:12px;color:#999;font-weight:600;margin-bottom:2px;">Situação</div>
-            <div id="mapaSituacao" style="font-size:12px;color:#222;font-weight:700;">—</div>
-        </div>
-
-    </div>
+    <!-- Elementos ocultos para manter compatibilidade com o JS -->
+    <span id="mapaUltimaAtualizacao" style="display:none;"></span>
+    <span id="mapaSituacao" style="display:none;"></span>
 </div>
 
 
@@ -178,6 +161,61 @@ function _iniciarMapa() {
             .setLngLat([FABRICA_COORDS[1], FABRICA_COORDS[0]])
             .setPopup(new maplibregl.Popup().setHTML('<b>⛺ O Rei da Coxinha</b><br>Ponto de partida'))
             .addTo(_mapaCliente);
+        // Sources para linha vermelha do percurso normal (antes e durante a rota)
+        _mapaCliente.addSource('rota-normal', { type:'geojson', data:{ type:'Feature', geometry:{ type:'LineString', coordinates:[] } } });
+        _mapaCliente.addLayer({ id:'rota-normal-layer', type:'line', source:'rota-normal',
+            layout:{ 'line-join':'round', 'line-cap':'round' },
+            paint:{ 'line-color':'#ff4757', 'line-width':3, 'line-opacity':0.6, 'line-dasharray':[8,5] }
+        });
+        // Seta SDF apontando para DIREITA (→) — MapLibre rotaciona seguindo a linha
+        (function() {
+          const sz = 32;
+          const c = document.createElement('canvas'); c.width = sz; c.height = sz;
+          const x = c.getContext('2d');
+          x.clearRect(0, 0, sz, sz);
+          x.fillStyle = '#ffffff';
+          x.beginPath();
+          x.moveTo(sz-4,  sz/2);
+          x.lineTo(4,     6);
+          x.lineTo(10,    sz/2);
+          x.lineTo(4,     sz-6);
+          x.closePath();
+          x.fill();
+          const id = x.getImageData(0, 0, sz, sz);
+          if (!_mapaCliente.hasImage('seta-rota')) {
+            _mapaCliente.addImage('seta-rota', { width:sz, height:sz, data:id.data }, { sdf: true });
+          }
+        })();
+        _mapaCliente.addLayer({ id:'rota-normal-setas', type:'symbol', source:'rota-normal',
+            layout:{
+                'symbol-placement':'line', 'symbol-spacing':90,
+                'icon-image':'seta-rota', 'icon-size':0.55,
+                'icon-rotation-alignment':'map', 'icon-keep-upright':false,
+                'icon-allow-overlap':true, 'icon-ignore-placement':true
+            },
+            paint:{ 'icon-color':'#ff4757', 'icon-opacity':0.95 }
+        });
+        // VOLTA: laranja
+        _mapaCliente.addSource('rota-volta', { type:'geojson', data:{ type:'Feature', geometry:{ type:'LineString', coordinates:[] } } });
+        _mapaCliente.addLayer({ id:'rota-volta-layer', type:'line', source:'rota-volta',
+            layout:{ 'line-join':'round', 'line-cap':'round' },
+            paint:{ 'line-color':'#f5a623', 'line-width':3, 'line-opacity':0.6, 'line-dasharray':[8,5] }
+        });
+        _mapaCliente.addLayer({ id:'rota-volta-setas', type:'symbol', source:'rota-volta',
+            layout:{
+                'symbol-placement':'line', 'symbol-spacing':90,
+                'icon-image':'seta-rota', 'icon-size':0.55,
+                'icon-rotation-alignment':'map', 'icon-keep-upright':false,
+                'icon-allow-overlap':true, 'icon-ignore-placement':true
+            },
+            paint:{ 'icon-color':'#f5a623', 'icon-opacity':0.95 }
+        });
+        // Source para linha azul (próxima parada — só quando rota iniciada)
+        _mapaCliente.addSource('rota-proxima-normal', { type:'geojson', data:{ type:'Feature', geometry:{ type:'LineString', coordinates:[] } } });
+        _mapaCliente.addLayer({ id:'rota-proxima-normal-layer', type:'line', source:'rota-proxima-normal',
+            layout:{ 'line-join':'round', 'line-cap':'round' },
+            paint:{ 'line-color':'#3d9cff', 'line-width':5, 'line-opacity':0.9 }
+        });
         // Sources para linhas da rota aleatória
         _iniciarSourcesRA();
         // Marcador do próprio cliente (sempre azul, sempre visível)
@@ -322,20 +360,22 @@ function horasBRT(d) {
 }
 
 /**
- * Converte "YYYY-MM-DD" + hora em São Paulo para um Date UTC correto.
- * Usa Intl para encontrar o offset real naquele instante, respeitando horário de verão.
+ * Converte "YYYY-MM-DD" + hora BRT para ISO string UTC correta.
+ * Usa Intl para calcular o offset real, respeitando horário de verão.
  */
 function _spHoraParaUTC(dateStr, hora = 14) {
-    // Estima o UTC aproximado e refina o offset com Intl
     const horaStr = String(hora).padStart(2, '0');
-    const estimaUtc = new Date(`${dateStr}T${horaStr}:00:00Z`);
-    const p = _partesSP(estimaUtc);
-    const spMs = new Date(`${p.year}-${p.month}-${p.day}T${p.hour}:${p.minute}:${p.second}`).getTime();
-    const offsetMs = spMs - estimaUtc.getTime();
-    return new Date(new Date(`${dateStr}T${horaStr}:00:00`).getTime() - offsetMs);
+    // Cria um Date no meio do dia UTC para obter o offset SP naquele dia
+    const ref = new Date(`${dateStr}T12:00:00Z`);
+    const p = _partesSP(ref);
+    const spMs  = new Date(`${p.year}-${p.month}-${p.day}T${p.hour}:${p.minute}:${p.second}`).getTime();
+    const offsetMs = ref.getTime() - spMs; // UTC - SP = offset (positivo quando SP atrás de UTC)
+    // Horário SP desejado em ms, depois converte para UTC
+    const spDesejadoMs = new Date(`${dateStr}T${horaStr}:00:00`).getTime();
+    return new Date(spDesejadoMs + offsetMs);
 }
 
-// ── Janela de pedido: 14h de ontem até 14h de hoje (BRT/BRST) ──────────────
+// ── Janela de pedido: 14h BRT de hoje/ontem até 14h BRT de amanhã/hoje ──────
 function _janelaPedido() {
     const agora = new Date();
     const p = _partesSP(agora);
@@ -344,14 +384,14 @@ function _janelaPedido() {
 
     let inicio, fim;
     if (agora >= hoje14utc) {
-        // já passou das 14h SP de hoje → janela: 14h hoje até 14h amanhã
+        // já passou das 14h BRT hoje → janela: 14h hoje até 14h amanhã
         const amanhaDate = new Date(agora.getTime() + 86400000);
         const pa = _partesSP(amanhaDate);
         const amanha = `${pa.year}-${pa.month}-${pa.day}`;
         inicio = hoje14utc;
         fim = _spHoraParaUTC(amanha, 14);
     } else {
-        // antes das 14h SP hoje → janela: 14h ontem até 14h hoje
+        // antes das 14h BRT hoje → janela: 14h ontem até 14h hoje
         const ontemDate = new Date(agora.getTime() - 86400000);
         const po = _partesSP(ontemDate);
         const ontem = `${po.year}-${po.month}-${po.day}`;
@@ -494,6 +534,52 @@ async function _buscarParadasRota() {
             _paradaMarkers.push(marker);
         });
 
+        // ── Linha vermelha: uma rota por vez
+        // Se tem rota em andamento → mostra ela; senão → mostra a próxima a sair
+        const rotaEmAndamento = rotas?.find(r => r.status === 'em_andamento');
+        const rotaParaLinha = rotaEmAndamento || rotas?.filter(r => r.status === 'criada')
+            .sort((a, b) => {
+                const toMin = h => { if (!h) return 9999; const [hh,mm] = h.split(':').map(Number); return hh*60+mm; };
+                return toMin(a.hora_saida) - toMin(b.hora_saida);
+            })[0];
+
+        const paradasDaRota = rotaParaLinha
+            ? (rotaParaLinha.paradas || rotaParaLinha.paradas_template || [])
+                .filter(p => phonesComPedido.has(p.cliente_phone) && p.coords && p.status !== 'entregue')
+            : [];
+
+        if (paradasDaRota.length > 0 && _mapaCliente.getSource('rota-normal')) {
+            // IDA: fábrica → todos os clientes (vermelho)
+            const pontosIda = [FABRICA_COORDS, ...paradasDaRota.map(p => p.coords)];
+            const fallbackIda = pontosIda.map(p => [p[1], p[0]]);
+            _buscarOSRM(pontosIda).then(coords => {
+                _setGeoJSON('rota-normal', coords || fallbackIda);
+            });
+            // VOLTA: último cliente → fábrica (laranja)
+            const pontosVolta = [paradasDaRota[paradasDaRota.length-1].coords, FABRICA_COORDS];
+            const fallbackVolta = pontosVolta.map(p => [p[1], p[0]]);
+            _buscarOSRM(pontosVolta).then(coords => {
+                _setGeoJSON('rota-volta', coords || fallbackVolta);
+            });
+        } else if (_mapaCliente.getSource('rota-normal')) {
+            _setGeoJSON('rota-normal', null);
+            _setGeoJSON('rota-volta', null);
+        }
+
+        // ── Linha azul: fábrica → primeira parada pendente (só quando rota em andamento)
+        const primeiraParada = rotaEmAndamento
+            ? (rotaEmAndamento.paradas || []).find(p => p.coords && p.status !== 'entregue')
+            : null;
+        if (primeiraParada && _mapaCliente.getSource('rota-proxima-normal')) {
+            const coordsProx = await _buscarOSRM([FABRICA_COORDS, primeiraParada.coords]);
+            const fallbackProx = [[FABRICA_COORDS[1], FABRICA_COORDS[0]], [primeiraParada.coords[1], primeiraParada.coords[0]]];
+            const linhaProx = coordsProx || fallbackProx;
+            _cacheLinhaStatus = linhaProx;
+            _setGeoJSON('rota-proxima-normal', linhaProx);
+        } else if (_mapaCliente.getSource('rota-proxima-normal')) {
+            _setGeoJSON('rota-proxima-normal', null);
+        }
+
     } catch(e) { console.warn('Erro paradas:', e); }
 }
 
@@ -597,6 +683,68 @@ function _setOnline(pos) {
     }
     // Atualiza linhas da rota aleatória com nova posição da moto
     if (_raEmRota) _desenharRotaAleatoria();
+
+    // Verifica desvio de 60m da linha e recalcula se necessário
+    _verificarDesvioStatus(pos.lat, pos.lon);
+}
+
+// ===== RECÁLCULO POR DESVIO (STATUS) =====
+let _cacheLinhaStatus = null;  // coordenadas [[lng,lat],...] da linha atual
+let _ultimoRecalcStatus = 0;
+
+function _distPontoSegSt(px, py, ax, ay, bx, by) {
+    const dx = bx-ax, dy = by-ay;
+    if (dx===0 && dy===0) return Math.hypot(px-ax, py-ay);
+    const t = Math.max(0, Math.min(1, ((px-ax)*dx+(py-ay)*dy)/(dx*dx+dy*dy)));
+    return Math.hypot(px-(ax+t*dx), py-(ay+t*dy));
+}
+function _distPontoLinhaSt(lat, lon, linha) {
+    if (!linha || linha.length < 2) return Infinity;
+    let min = Infinity;
+    for (let i = 0; i < linha.length-1; i++) {
+        const d = _distPontoSegSt(lon, lat, linha[i][0], linha[i][1], linha[i+1][0], linha[i+1][1]);
+        const m = d * 111000;
+        if (m < min) min = m;
+    }
+    return min;
+}
+
+async function _verificarDesvioStatus(lat, lon) {
+    const agora = Date.now();
+    if (agora - _ultimoRecalcStatus < 10000) return; // máx 1x a cada 10s
+    const dist = _distPontoLinhaSt(lat, lon, _cacheLinhaStatus);
+    if (dist <= 60) return;
+    _ultimoRecalcStatus = agora;
+
+    // Busca a próxima parada pendente e recalcula a partir da posição atual
+    try {
+        const janela = _janelaPedido();
+        const { data: pedidos } = await sb.from('pedidos').select('customer_phone')
+            .gte('created_at', janela.inicio).lt('created_at', janela.fim);
+        const phonesComPedido = new Set((pedidos||[]).map(p=>p.customer_phone).filter(Boolean));
+        const { data: rotas } = await sb.from('rotas').select('paradas,paradas_template,status')
+            .in('status', ['em_andamento','criada']);
+        if (!rotas?.length) return;
+
+        // Pega a próxima parada pendente em ordem
+        let proximaParada = null;
+        for (const rota of rotas) {
+            const paradas = rota.paradas || rota.paradas_template || [];
+            proximaParada = paradas.find(p => phonesComPedido.has(p.cliente_phone) && p.coords && p.status !== 'entregue');
+            if (proximaParada) break;
+        }
+        if (!proximaParada) return;
+
+        // Recalcula linha: posição atual → próxima parada
+        const pontos = [[lat, lon], proximaParada.coords];
+        const coords = await _buscarOSRM(pontos);
+        const fallback = pontos.map(p => [p[1], p[0]]);
+        const linha = coords || fallback;
+        _cacheLinhaStatus = linha;
+        if (_mapaCliente.getSource('rota-proxima-normal')) {
+            _setGeoJSON('rota-proxima-normal', linha);
+        }
+    } catch(e) { console.warn('Recálculo desvio:', e); }
 }
 
 function _setOfflineFabrica() {
@@ -732,6 +880,18 @@ async function _desenharRotaAleatoria() {
             await _desenharFilaRA();
         }
     }
+}
+
+const OSRM_BASE_CLI = 'https://router.project-osrm.org/route/v1/driving/';
+async function _buscarOSRM(pontos) {
+    if (!pontos || pontos.length < 2) return null;
+    try {
+        const url = OSRM_BASE_CLI + pontos.map(p => `${p[1]},${p[0]}`).join(';') + '?overview=full&geometries=geojson&steps=false';
+        const r = await fetch(url, { signal: AbortSignal.timeout(8000) });
+        if (!r.ok) return null;
+        const j = await r.json();
+        return j.code === 'Ok' && j.routes?.length ? j.routes[0].geometry.coordinates : null;
+    } catch(e) { return null; }
 }
 
 function _setGeoJSON(id, coords) {
