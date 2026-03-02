@@ -420,33 +420,49 @@ async function _buscarParadasRota() {
             .lt('created_at', janela.fim);
         const phonesComPedido = new Set((pedidos || []).map(p => p.customer_phone).filter(Boolean));
 
-        // Buscar rota em andamento (e também rotas criadas prontas para sair)
+        // Buscar todas as rotas relevantes — inclui concluido para ver status real das paradas
         const { data: rotas } = await sb.from('rotas')
-            .select('paradas,status,paradas_template')
-            .in('status', ['em_andamento', 'criada'])
+            .select('paradas,status,paradas_template,fim_em,saida_em')
+            .in('status', ['em_andamento', 'criada', 'concluido'])
             .order('hora_saida', { ascending: true });
+
+        // Filtra só rotas do dia de hoje (evita mostrar rotas de dias anteriores)
+        const hoje = (() => { const p = _partesSP(); return `${p.year}-${p.month}-${p.day}`; })();
+        const rotasDoDia = (rotas || []).filter(r => {
+            if (r.status === 'em_andamento' || r.status === 'criada') return true;
+            if (r.fim_em && r.fim_em.slice(0,10) === hoje) return true;
+            if (r.saida_em && r.saida_em.slice(0,10) === hoje) return true;
+            return false;
+        });
 
         // Limpar marcadores antigos
         _paradaMarkers.forEach(m => m.remove());
         _paradaMarkers = [];
 
-        if (!rotas?.length) {
+        if (!rotasDoDia?.length) {
             document.getElementById('mapaSituacao').textContent = 'Aguardando rota';
             return;
         }
 
         // Rota em andamento para o contador
-        const rotaAtiva = rotas.find(r => r.status === 'em_andamento');
+        const rotaAtiva = rotasDoDia.find(r => r.status === 'em_andamento');
         if (rotaAtiva?.paradas?.length) {
             const entregues = rotaAtiva.paradas.filter(p => p.status === 'entregue').length;
             document.getElementById('mapaSituacao').textContent =
                 entregues + '/' + rotaAtiva.paradas.length + ' entregues';
+        } else {
+            const rotaConcluida = rotasDoDia.find(r => r.status === 'concluido');
+            if (rotaConcluida?.paradas?.length) {
+                document.getElementById('mapaSituacao').textContent =
+                    rotaConcluida.paradas.length + '/' + rotaConcluida.paradas.length + ' entregues ✅';
+            }
         }
 
-        // Consolida todas as paradas mantendo a ordem das rotas
+        // Consolida todas as paradas — usa SEMPRE rota.paradas (com status real),
+        // NUNCA paradas_template que não tem o status 'entregue' salvo
         const todasParadas = [];
-        rotas.forEach(rota => {
-            const paradas = rota.paradas || rota.paradas_template || [];
+        rotasDoDia.forEach(rota => {
+            const paradas = rota.paradas || [];
             paradas.forEach(p => todasParadas.push({ ...p, _rotaStatus: rota.status }));
         });
 
@@ -542,8 +558,8 @@ async function _buscarParadasRota() {
 
         // ── Linha vermelha: uma rota por vez
         // Se tem rota em andamento → mostra ela; senão → mostra a próxima a sair
-        const rotaEmAndamento = rotas?.find(r => r.status === 'em_andamento');
-        const rotaParaLinha = rotaEmAndamento || rotas?.filter(r => r.status === 'criada')
+        const rotaEmAndamento = rotasDoDia?.find(r => r.status === 'em_andamento');
+        const rotaParaLinha = rotaEmAndamento || rotasDoDia?.filter(r => r.status === 'criada')
             .sort((a, b) => {
                 const toMin = h => { if (!h) return 9999; const [hh,mm] = h.split(':').map(Number); return hh*60+mm; };
                 return toMin(a.hora_saida) - toMin(b.hora_saida);
@@ -893,7 +909,10 @@ async function _buscarOSRM(pontos) {
     if (!pontos || pontos.length < 2) return null;
     try {
         const url = OSRM_BASE_CLI + pontos.map(p => `${p[1]},${p[0]}`).join(';') + '?overview=full&geometries=geojson&steps=false';
-        const r = await fetch(url, { signal: AbortSignal.timeout(8000) });
+        const controller = new AbortController();
+        const tid = setTimeout(() => controller.abort(), 8000);
+        let r;
+        try { r = await fetch(url, { signal: controller.signal }); } finally { clearTimeout(tid); }
         if (!r.ok) return null;
         const j = await r.json();
         return j.code === 'Ok' && j.routes?.length ? j.routes[0].geometry.coordinates : null;
@@ -934,19 +953,31 @@ function _iniciarRastreamento() {
     atualizarBadgeEntrega();
     _gpsInterval  = setInterval(_buscarPosEntregador, 3000);
     _rotaInterval = setInterval(() => { _buscarParadasRota(); atualizarBadgeEntrega(); }, 15000);
-    // Realtime GPS
+    // Realtime GPS — escuta INSERT e UPDATE (upsert pode gerar INSERT na primeira vez)
     _realtimeGPS = sb.channel('gps_cli_rt')
-        .on('postgres_changes', { event:'UPDATE', schema:'public', table:'rota_especial_gps', filter:'chave=eq.entregador_gps' },
+        .on('postgres_changes', { event:'INSERT', schema:'public', table:'rota_especial_gps', filter:'chave=eq.entregador_gps' },
             payload => {
                 try {
                     const pos = JSON.parse(payload.new.valor);
-                    // Realtime chegou — cancela timer de offline imediatamente
                     if (_offlineTimer) { clearTimeout(_offlineTimer); _offlineTimer = null; }
                     _ultimaVezOnline = Date.now();
                     _setOnline(pos);
                 } catch(e) {}
             })
-        .subscribe();
+        .on('postgres_changes', { event:'UPDATE', schema:'public', table:'rota_especial_gps', filter:'chave=eq.entregador_gps' },
+            payload => {
+                try {
+                    const pos = JSON.parse(payload.new.valor);
+                    if (_offlineTimer) { clearTimeout(_offlineTimer); _offlineTimer = null; }
+                    _ultimaVezOnline = Date.now();
+                    _setOnline(pos);
+                } catch(e) {}
+            })
+        .subscribe((status) => {
+            if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+                console.warn('[Realtime GPS] falhou, dependendo do polling');
+            }
+        });
     // Realtime Rotas — atualiza marcadores quando entregador marca como entregue
     _realtimeRotas = sb.channel('rotas_cli_rt')
         .on('postgres_changes', { event:'UPDATE', schema:'public', table:'rotas' },
