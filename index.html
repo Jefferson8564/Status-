@@ -85,6 +85,26 @@ try {
     if (cached) user = JSON.parse(cached);
 } catch(e) {}
 
+// Tenta também chaves alternativas usadas por outras páginas do app
+if (!user) {
+    try {
+        for (const key of ['user', 'cliente', 'usuario', 'reidacoxinha_user']) {
+            const v = localStorage.getItem(key);
+            if (v) { user = JSON.parse(v); break; }
+        }
+    } catch(e) {}
+}
+
+// Fallback: parâmetros na URL (?phone=xxx&name=yyy)
+if (!user) {
+    try {
+        const params = new URLSearchParams(window.location.search);
+        const phone = params.get('phone');
+        const name  = params.get('name');
+        if (phone) user = { phone, name: name || 'Cliente' };
+    } catch(e) {}
+}
+
 // Funções mock que o código de localização usa mas não precisamos aqui
 function showToast() {}
 
@@ -227,6 +247,10 @@ function _iniciarMapa() {
             .addTo(_mapaCliente);
         // Marcador do próprio cliente (sempre azul, sempre visível)
         _criarMarcadorEu();
+
+        // ✅ CORREÇÃO: iniciar rastreamento APÓS mapa carregar completamente
+        _iniciarRastreamento();
+        verificarStatusEntregadorCard();
     });
 }
 
@@ -962,7 +986,7 @@ function _iniciarRastreamento() {
                     if (_offlineTimer) { clearTimeout(_offlineTimer); _offlineTimer = null; }
                     _ultimaVezOnline = Date.now();
                     _setOnline(pos);
-                } catch(e) {}
+                } catch(e) { console.warn('[GPS INSERT] Erro ao parsear posição:', e); }
             })
         .on('postgres_changes', { event:'UPDATE', schema:'public', table:'gps', filter:'chave=eq.entregador_gps' },
             payload => {
@@ -971,11 +995,14 @@ function _iniciarRastreamento() {
                     if (_offlineTimer) { clearTimeout(_offlineTimer); _offlineTimer = null; }
                     _ultimaVezOnline = Date.now();
                     _setOnline(pos);
-                } catch(e) {}
+                } catch(e) { console.warn('[GPS UPDATE] Erro ao parsear posição:', e); }
             })
         .subscribe((status) => {
-            if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-                console.warn('[Realtime GPS] falhou, dependendo do polling');
+            console.log('[Realtime GPS] status:', status);
+            if (status === 'SUBSCRIBED') {
+                console.log('[Realtime GPS] ✅ Conectado com sucesso');
+            } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+                console.warn('[Realtime GPS] ⚠️ Falhou, dependendo do polling a cada 3s');
             }
         });
     // Realtime Rotas — atualiza marcadores quando entregador marca como entregue
@@ -1238,11 +1265,9 @@ window.addEventListener('load', () => setTimeout(verificarStatusEntregadorCard, 
 
 // Auto-iniciar ao carregar
 window.addEventListener('load', () => {
-    // Abrir direto sem animação
+    // Abrir direto sem animação — rastreamento inicia dentro do evento 'load' do mapa
     setTimeout(() => {
         _iniciarMapa();
-        _iniciarRastreamento();
-        verificarStatusEntregadorCard();
     }, 200);
 });
 
