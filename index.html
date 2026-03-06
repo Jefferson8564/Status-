@@ -85,26 +85,6 @@ try {
     if (cached) user = JSON.parse(cached);
 } catch(e) {}
 
-// Tenta também chaves alternativas usadas por outras páginas do app
-if (!user) {
-    try {
-        for (const key of ['user', 'cliente', 'usuario', 'reidacoxinha_user']) {
-            const v = localStorage.getItem(key);
-            if (v) { user = JSON.parse(v); break; }
-        }
-    } catch(e) {}
-}
-
-// Fallback: parâmetros na URL (?phone=xxx&name=yyy)
-if (!user) {
-    try {
-        const params = new URLSearchParams(window.location.search);
-        const phone = params.get('phone');
-        const name  = params.get('name');
-        if (phone) user = { phone, name: name || 'Cliente' };
-    } catch(e) {}
-}
-
 // Funções mock que o código de localização usa mas não precisamos aqui
 function showToast() {}
 
@@ -119,6 +99,7 @@ let _euMarker        = null;   // marcador azul do próprio cliente
 let _minhaPosicao    = null;   // posição global do próprio usuário na rota
 let _paradaMarkers   = [];     // marcadores das outras paradas em entrega
 let _realtimeGPS     = null;
+let _realtimeRotaLive = null;   // canal para rota_status_live
 let _realtimeRotas   = null;
 let _realtimePedidos = null;
 let _gpsInterval     = null;
@@ -166,6 +147,54 @@ function centrarMotoCliente() {
 }
 
 // ── Iniciar mapa ─────────────────────────────────────────────────────────────
+
+// ════════════════════════════════════════════════════════════
+//  Utilitários — espelho exato das regras do index.html
+// ════════════════════════════════════════════════════════════
+
+/** Distância haversine em metros */
+function _calcDistM(lat1, lon1, lat2, lon2) {
+    const R = 6371000;
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+/**
+ * Lê o snapshot publicado pelo index (chave rota_status_live) +
+ * os campos do próprio pedido do usuário logado.
+ * Retorna objeto unificado com tudo que o Status.html precisa.
+ */
+async function _lerStatusLive() {
+    if (!user?.phone) return null;
+    try {
+        const janela = _janelaPedido();
+        const [snapRow, pedidoRow] = await Promise.all([
+            sb.from('gps').select('valor').eq('chave', 'rota_status_live').maybeSingle(),
+            sb.from('pedidos')
+                .select('entregue, status_entrega, posicao_fila, eta_minutos, rota_nome, rota_status, total_paradas_rota, entregues_rota, entregador_lat, entregador_lon, entregue_em')
+                .eq('customer_phone', user.phone)
+                .gte('created_at', janela.inicio)
+                .lte('created_at', janela.fim)
+                .order('created_at', { ascending: false })
+                .limit(1).maybeSingle()
+        ]);
+
+        let snap = null;
+        try { if (snapRow?.valor) snap = JSON.parse(snapRow.valor); } catch(e) {}
+
+        return {
+            snap,          // snapshot da rota (do index)
+            pedido: pedidoRow || null,   // campos do pedido do cliente
+            janela,
+        };
+    } catch(e) {
+        console.warn('[_lerStatusLive]', e);
+        return null;
+    }
+}
+
 function _iniciarMapa() {
     _mapaCliente = new maplibregl.Map({
         container: 'mapaEntregadorCliente',
@@ -247,10 +276,6 @@ function _iniciarMapa() {
             .addTo(_mapaCliente);
         // Marcador do próprio cliente (sempre azul, sempre visível)
         _criarMarcadorEu();
-
-        // ✅ CORREÇÃO: iniciar rastreamento APÓS mapa carregar completamente
-        _iniciarRastreamento();
-        verificarStatusEntregadorCard();
     });
 }
 
@@ -986,7 +1011,7 @@ function _iniciarRastreamento() {
                     if (_offlineTimer) { clearTimeout(_offlineTimer); _offlineTimer = null; }
                     _ultimaVezOnline = Date.now();
                     _setOnline(pos);
-                } catch(e) { console.warn('[GPS INSERT] Erro ao parsear posição:', e); }
+                } catch(e) {}
             })
         .on('postgres_changes', { event:'UPDATE', schema:'public', table:'gps', filter:'chave=eq.entregador_gps' },
             payload => {
@@ -995,14 +1020,11 @@ function _iniciarRastreamento() {
                     if (_offlineTimer) { clearTimeout(_offlineTimer); _offlineTimer = null; }
                     _ultimaVezOnline = Date.now();
                     _setOnline(pos);
-                } catch(e) { console.warn('[GPS UPDATE] Erro ao parsear posição:', e); }
+                } catch(e) {}
             })
         .subscribe((status) => {
-            console.log('[Realtime GPS] status:', status);
-            if (status === 'SUBSCRIBED') {
-                console.log('[Realtime GPS] ✅ Conectado com sucesso');
-            } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-                console.warn('[Realtime GPS] ⚠️ Falhou, dependendo do polling a cada 3s');
+            if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+                console.warn('[Realtime GPS] falhou, dependendo do polling');
             }
         });
     // Realtime Rotas — atualiza marcadores quando entregador marca como entregue
@@ -1010,11 +1032,26 @@ function _iniciarRastreamento() {
         .on('postgres_changes', { event:'UPDATE', schema:'public', table:'rotas' },
             () => { _buscarParadasRota(); atualizarBadgeEntrega(); })
         .subscribe();
-    // Realtime Pedidos — atualiza badge quando entregador confirma entrega
+    // Realtime Pedidos — atualiza badge + painel quando entregador muda status_entrega
     _realtimePedidos = sb.channel('pedidos_cli_rt')
         .on('postgres_changes', { event:'UPDATE', schema:'public', table:'pedidos',
             filter:`customer_phone=eq.${user?.phone}` },
-            () => { atualizarBadgeEntrega(); _buscarParadasRota(); })
+            async () => {
+                await atualizarBadgeEntrega();
+                await _buscarParadasRota();
+                if (_painelAberto) _renderPainelRota();
+            })
+        .subscribe();
+
+    // Realtime rota_status_live — escuta mudanças no snapshot da rota
+    _realtimeRotaLive = sb.channel('rota_live_cli_rt')
+        .on('postgres_changes', { event:'*', schema:'public', table:'gps',
+            filter:'chave=eq.rota_status_live' },
+            async () => {
+                await atualizarBadgeEntrega();
+                await _buscarParadasRota();
+                if (_painelAberto) _renderPainelRota();
+            })
         .subscribe();
     // Realtime Rota Aleatória — fila mudou (novo cliente, saiu, entregou)
     _realtimeRA = sb.channel('ra_cli_rt')
@@ -1035,6 +1072,7 @@ function _pararRastreamento() {
     if (_realtimeRotas)   { sb.removeChannel(_realtimeRotas);   _realtimeRotas   = null; }
     if (_realtimePedidos) { sb.removeChannel(_realtimePedidos); _realtimePedidos = null; }
     if (_realtimeRA)      { sb.removeChannel(_realtimeRA);      _realtimeRA      = null; }
+    if (_realtimeRotaLive){ sb.removeChannel(_realtimeRotaLive); _realtimeRotaLive = null; }
     _limparMarcadoresRA();
     _setGeoJSON('ra-completa', null);
     _setGeoJSON('ra-proxima', null);
@@ -1070,28 +1108,50 @@ async function verificarStatusEntregadorCard() {
 async function atualizarBadgeEntrega() {
     if (!user?.phone) return;
     try {
-        // Verificar se o pedido já foi entregue hoje
-        const janela = _janelaPedido();
-        const { data: pedidoHoje } = await sb.from('pedidos')
-            .select('entregue, entregue_em')
-            .eq('customer_phone', user.phone)
-            .gte('created_at', janela.inicio)
-            .lt('created_at', janela.fim)
-            .order('created_at', { ascending: false })
-            .limit(1).maybeSingle();
+        const info = await _lerStatusLive();
+        const pedido = info?.pedido;
+        const snap   = info?.snap;
 
-        if (pedidoHoje?.entregue) {
-            const badge = document.getElementById('entregaBadge');
-            const numEl = document.getElementById('badgeFilaNum');
-            const etaEl = document.getElementById('badgeEta');
+        const badge = document.getElementById('entregaBadge');
+        const numEl = document.getElementById('badgeFilaNum');
+        const etaEl = document.getElementById('badgeEta');
+        const sitEl = document.getElementById('mapaSituacao');
+
+        // ── 1) Pedido já entregue ────────────────────────────────────────────
+        if (pedido?.entregue || pedido?.status_entrega === 'entregue') {
             if (badge) badge.style.display = 'flex';
             if (numEl) { numEl.textContent = '✅'; numEl.style.color = '#27ae60'; }
             if (etaEl) etaEl.textContent = 'Entregue!';
+            if (sitEl) sitEl.textContent = '✅ Pedido entregue!';
             return;
         }
 
-        // Buscar todas as rotas ativas ou criadas para hoje
-        const hoje = (() => { const p = _partesSP(new Date()); return `${p.year}-${p.month}-${p.day}`; })();
+        // ── 2) Campos publicados pelo index (status_entrega preenchido) ──────
+        if (pedido?.status_entrega && pedido.status_entrega !== 'pendente') {
+            const pos    = pedido.posicao_fila ?? 0;
+            const eta    = pedido.eta_minutos  ?? 0;
+            const isProx = pedido.status_entrega === 'proximo' || pos === 0;
+            const nome   = pedido.rota_nome || snap?.rota_nome || '';
+
+            if (badge) badge.style.display = 'flex';
+            if (numEl) numEl.textContent = isProx ? '🎯' : pos + 'x';
+            if (etaEl) etaEl.textContent = isProx ? 'Próximo!' : '~' + eta + 'min';
+            if (sitEl) sitEl.textContent = isProx ? '🎯 Você é o próximo!' : pos + ' na frente · ' + nome;
+            return;
+        }
+
+        // ── 3) Snapshot da rota disponível mas pedido ainda sem status_entrega
+        //       (janela de tempo entre criar pedido e a rota iniciar)
+        if (snap?.rota_status === 'em_andamento') {
+            if (badge) badge.style.display = 'flex';
+            if (numEl) numEl.textContent = '⏳';
+            if (etaEl) etaEl.textContent = 'Calculando...';
+            if (sitEl) sitEl.textContent = '🚀 Rota em andamento';
+            return;
+        }
+
+        // ── 4) Fallback: lê rotas diretamente (antes de rota iniciar) ────────
+        const janela = _janelaPedido();
         const { data: rotas } = await sb.from('rotas')
             .select('id,status,paradas,paradas_template,nome')
             .in('status', ['criada','em_andamento'])
@@ -1099,47 +1159,26 @@ async function atualizarBadgeEntrega() {
 
         if (!rotas?.length) { _esconderBadge(); return; }
 
-        let minhaRota = null;
-        let posNaFila = 0;        // clientes na frente (de todas as rotas antes)
-        let encontrado = false;
-        let nomeRota = '';
-
+        let posNaFila = 0, encontrado = false, nomeRota = '';
         for (const rota of rotas) {
-            const paradas = rota.paradas || rota.paradas_template || [];
+            const paradas   = rota.paradas || rota.paradas_template || [];
             const pendentes = paradas.filter(p => p.status !== 'entregue');
-
             for (let i = 0; i < pendentes.length; i++) {
                 if (pendentes[i].cliente_phone === user.phone) {
-                    minhaRota = rota;
-                    nomeRota  = rota.nome || rota.Rotas || 'Rota';
-                    posNaFila += i; // quantos na frente dentro dessa rota
-                    encontrado = true;
-                    break;
+                    nomeRota = rota.nome || rota.Rotas || 'Rota';
+                    posNaFila += i; encontrado = true; break;
                 }
             }
             if (encontrado) break;
-            // Se não estava nessa rota, soma todos os pendentes dela (são "antes de mim")
             if (!encontrado) posNaFila += pendentes.length;
         }
-
         if (!encontrado) { _esconderBadge(); return; }
 
-        // Calcular ETA estimado: ~12 min por parada
-        const MIN_POR_PARADA = 12;
-        const etaMin = posNaFila === 0 ? 'Próximo!' : (posNaFila * MIN_POR_PARADA) + '-' + (posNaFila * MIN_POR_PARADA + MIN_POR_PARADA) + 'min';
-        const filaTexto = posNaFila === 0 ? '🎯 Próximo!' : posNaFila + ' na frente';
-
-        // Atualizar badge
-        const badge    = document.getElementById('entregaBadge');
-        const numEl    = document.getElementById('badgeFilaNum');
-        const etaEl    = document.getElementById('badgeEta');
-        if (badge)  { badge.style.display = 'flex'; }
-        if (numEl)  numEl.textContent  = posNaFila === 0 ? '🎯' : posNaFila + 'x';
-        if (etaEl)  etaEl.textContent  = posNaFila === 0 ? 'Próximo!' : '~' + etaMin;
-
-        // Atualizar situação dentro do modal
-        const sitEl = document.getElementById('mapaSituacao');
-        if (sitEl) sitEl.textContent = filaTexto + ' · ' + nomeRota;
+        const MIN = 12;
+        if (badge) badge.style.display = 'flex';
+        if (numEl) numEl.textContent = posNaFila === 0 ? '🎯' : posNaFila + 'x';
+        if (etaEl) etaEl.textContent = posNaFila === 0 ? 'Próximo!' : '~' + (posNaFila*MIN) + '-' + (posNaFila*MIN+MIN) + 'min';
+        if (sitEl) sitEl.textContent = (posNaFila === 0 ? '🎯 Próximo!' : posNaFila + ' na frente') + ' · ' + nomeRota;
 
     } catch(e) { console.warn('Badge entrega:', e); }
 }
@@ -1166,7 +1205,104 @@ async function _renderPainelRota() {
     conteudo.innerHTML = '<div style="text-align:center;color:#aaa;font-size:13px;padding:8px 0;">Carregando...</div>';
 
     try {
-        // Usa a mesma janela de pedido (regra das 14h) para validar se o cliente fez pedido
+        const info   = await _lerStatusLive();
+        const pedido = info?.pedido;
+        const snap   = info?.snap;
+
+        // ── 1) Pedido já entregue ──────────────────────────────────────────────
+        if (pedido?.entregue || pedido?.status_entrega === 'entregue') {
+            conteudo.innerHTML = `
+              <div style="text-align:center;padding:16px 0;">
+                <div style="font-size:44px;margin-bottom:8px;">✅</div>
+                <div style="font-size:16px;font-weight:800;color:#27ae60;">Pedido entregue!</div>
+                <div style="font-size:12px;color:#aaa;margin-top:6px;">Bom apetite! 🍽️</div>
+              </div>`;
+            return;
+        }
+
+        // ── 2) Dados em tempo real publicados pelo index ───────────────────────
+        if (pedido?.status_entrega && pedido.status_entrega !== 'pendente') {
+            const pos      = pedido.posicao_fila  ?? 0;
+            const eta      = pedido.eta_minutos   ?? 0;
+            const isProx   = pedido.status_entrega === 'proximo' || pos === 0;
+            const total    = pedido.total_paradas_rota ?? snap?.total_paradas ?? '?';
+            const entregues = pedido.entregues_rota   ?? snap?.entregues      ?? 0;
+            const ehAlt    = snap?.eh_aleatoria || false;
+            const nomeRota = pedido.rota_nome || snap?.rota_nome || (ehAlt ? '🎲 Rota Aleatória' : 'Rota');
+            const saidaEm  = snap?.saida_em ? new Date(snap.saida_em).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}) : null;
+
+            // Distância do entregador até o cliente (se GPS disponível)
+            let distHtml = '';
+            if (pedido.entregador_lat && pedido.entregador_lon && _euMarker) {
+                const ll = _euMarker.getLngLat();
+                const d  = _calcDistM(pedido.entregador_lat, pedido.entregador_lon, ll.lat, ll.lng);
+                const dTxt = d < 1000 ? Math.round(d) + 'm' : (d/1000).toFixed(1) + 'km';
+                distHtml = `<div style="padding:8px 12px;background:#e8f4fd;border-radius:12px;display:flex;align-items:center;gap:8px;">
+                  <span style="font-size:18px;">📡</span>
+                  <div>
+                    <div style="font-size:12px;font-weight:700;color:#2980b9;">Entregador a ${dTxt} de você</div>
+                    <div style="font-size:10px;color:#aaa;">posição ao vivo</div>
+                  </div>
+                </div>`;
+            }
+
+            conteudo.innerHTML = `
+              <div style="display:flex;flex-direction:column;gap:10px;">
+
+                <!-- Status da rota -->
+                <div style="display:flex;align-items:center;gap:8px;padding:10px 12px;background:#f8f8f6;border-radius:12px;">
+                  <span style="font-size:13px;font-weight:700;color:#27ae60;">🚀 Em andamento</span>
+                  <span style="font-size:11px;color:#aaa;margin-left:auto;">${nomeRota}${saidaEm ? ' · saiu ' + saidaEm : ''}</span>
+                </div>
+
+                <!-- Fila + ETA -->
+                <div style="display:flex;gap:8px;">
+                  <div style="flex:1;background:${isProx?'rgba(46,204,113,0.1)':'rgba(52,152,219,0.1)'};border:1.5px solid ${isProx?'rgba(46,204,113,0.4)':'rgba(52,152,219,0.3)'};border-radius:14px;padding:12px 10px;text-align:center;">
+                    <div style="font-size:26px;font-weight:900;color:${isProx?'#27ae60':'#2980b9'};">${isProx?'🎯':pos}</div>
+                    <div style="font-size:11px;color:#666;font-weight:600;margin-top:2px;">${isProx?'Você é o próximo!':'na sua frente'}</div>
+                  </div>
+                  <div style="flex:1;background:rgba(241,196,15,0.1);border:1.5px solid rgba(241,196,15,0.4);border-radius:14px;padding:12px 10px;text-align:center;">
+                    <div style="font-size:18px;font-weight:900;color:#d4a017;">${isProx?'Em breve!':'~'+eta+'min'}</div>
+                    <div style="font-size:11px;color:#666;font-weight:600;margin-top:2px;">tempo estimado</div>
+                  </div>
+                </div>
+
+                <!-- GPS do entregador -->
+                ${distHtml}
+
+                <!-- Progresso da rota -->
+                <div style="padding:8px 12px;background:#f8f8f6;border-radius:12px;display:flex;align-items:center;justify-content:space-between;">
+                  <span style="font-size:12px;color:#888;">Progresso da rota</span>
+                  <span style="font-size:13px;font-weight:800;color:#333;">${entregues}/${total} ✓</span>
+                </div>
+
+                <div style="font-size:11px;color:#bbb;text-align:center;">Atualizado em tempo real ✨</div>
+              </div>`;
+            return;
+        }
+
+        // ── 3) Rota existe mas pedido ainda sem status_entrega ─────────────────
+        if (snap?.rota_status === 'em_andamento') {
+            const total  = snap.total_paradas ?? '?';
+            const entregues = snap.entregues ?? 0;
+            const saidaEm = snap.saida_em ? new Date(snap.saida_em).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}) : null;
+            conteudo.innerHTML = `
+              <div style="display:flex;flex-direction:column;gap:10px;">
+                <div style="padding:10px 12px;background:#f8f8f6;border-radius:12px;">
+                  <span style="font-size:13px;font-weight:700;color:#27ae60;">🚀 Rota em andamento${saidaEm?' · saiu '+saidaEm:''}</span>
+                </div>
+                <div style="padding:8px 12px;background:#fff8e1;border-radius:12px;font-size:12px;color:#e67e22;font-weight:600;">
+                  ⏳ Calculando sua posição na fila...
+                </div>
+                <div style="padding:8px 12px;background:#f8f8f6;border-radius:12px;display:flex;justify-content:space-between;">
+                  <span style="font-size:12px;color:#888;">Progresso</span>
+                  <span style="font-size:13px;font-weight:800;color:#333;">${entregues}/${total} ✓</span>
+                </div>
+              </div>`;
+            return;
+        }
+
+        // ── 4) Fallback: lê rotas diretamente ──────────────────────────────────
         const janela = _janelaPedido();
         const [{ data: rotas }, { data: pedidosJanela }] = await Promise.all([
             sb.from('rotas')
@@ -1178,29 +1314,22 @@ async function _renderPainelRota() {
                 .gte('created_at', janela.inicio)
                 .lt('created_at', janela.fim)
         ]);
-        const phonesComPedidoValido = new Set((pedidosJanela || []).map(p => p.customer_phone).filter(Boolean));
+        const phonesValidos = new Set((pedidosJanela||[]).map(p=>p.customer_phone).filter(Boolean));
 
         if (!rotas?.length) {
             conteudo.innerHTML = '<div style="text-align:center;padding:10px 0;"><div style="font-size:28px;margin-bottom:6px;">😴</div><div style="color:#aaa;font-size:13px;">Nenhuma rota ativa no momento.</div></div>';
             return;
         }
 
-        let minhaRota = null, posNaFila = 0, encontrado = false, nomeRota = '', totalPendentes = 0, minhasParadas = null;
-
+        let posNaFila = 0, encontrado = false, nomeRota = '', totalPendentes = 0, statusRota = 'criada', horaSaida = null;
         for (const rota of rotas) {
-            const paradas = rota.paradas || rota.paradas_template || [];
-            // Só conta como pendente quem fez pedido na janela correta e não foi entregue
-            const pendentes = paradas.filter(p => p.status !== 'entregue' && phonesComPedidoValido.has(p.cliente_phone));
-
+            const paradas   = rota.paradas || rota.paradas_template || [];
+            const pendentes = paradas.filter(p => p.status !== 'entregue' && phonesValidos.has(p.cliente_phone));
             for (let i = 0; i < pendentes.length; i++) {
                 if (pendentes[i].cliente_phone === user?.phone) {
-                    minhaRota  = rota;
-                    nomeRota   = rota.nome || 'Rota';
-                    posNaFila  = i;
-                    encontrado = true;
-                    minhasParadas = pendentes;
-                    totalPendentes = pendentes.length;
-                    break;
+                    nomeRota = rota.nome || 'Rota'; posNaFila = i;
+                    totalPendentes = pendentes.length; statusRota = rota.status;
+                    horaSaida = rota.hora_saida; encontrado = true; break;
                 }
             }
             if (encontrado) break;
@@ -1208,51 +1337,37 @@ async function _renderPainelRota() {
         }
 
         if (!encontrado) {
-            // Usuário não está em nenhuma rota ativa
             conteudo.innerHTML = '<div style="text-align:center;padding:10px 0;"><div style="font-size:28px;margin-bottom:6px;">📭</div><div style="color:#aaa;font-size:13px;">Seu pedido não está em nenhuma rota ativa.</div></div>';
             return;
         }
 
-        const MIN_POR_PARADA = 12;
-        const etaMin  = posNaFila * MIN_POR_PARADA;
-        const etaMax  = etaMin + MIN_POR_PARADA;
-        const isProx  = posNaFila === 0;
-
-        // Cor do status
-        const statusCor   = minhaRota.status === 'em_andamento' ? '#27ae60' : '#f39c12';
-        const statusLabel = minhaRota.status === 'em_andamento' ? '🚀 Em andamento' : '🕐 Aguardando saída';
+        const MIN = 12;
+        const isProx = posNaFila === 0;
+        const statusCor   = statusRota === 'em_andamento' ? '#27ae60' : '#f39c12';
+        const statusLabel = statusRota === 'em_andamento' ? '🚀 Em andamento' : `🕐 Prevista para ${horaSaida||'?'}`;
 
         conteudo.innerHTML = `
           <div style="display:flex;flex-direction:column;gap:10px;">
-
-            <!-- Status da rota -->
             <div style="display:flex;align-items:center;gap:8px;padding:10px 12px;background:#f8f8f6;border-radius:12px;">
               <span style="font-size:13px;font-weight:700;color:${statusCor};">${statusLabel}</span>
               <span style="font-size:11px;color:#aaa;margin-left:auto;">${nomeRota}</span>
             </div>
-
-            <!-- Fila -->
             <div style="display:flex;gap:8px;">
-              <div style="flex:1;background:${isProx ? 'rgba(46,204,113,0.1)' : 'rgba(52,152,219,0.1)'};border:1.5px solid ${isProx ? 'rgba(46,204,113,0.4)' : 'rgba(52,152,219,0.3)'};border-radius:14px;padding:12px 10px;text-align:center;">
-                <div style="font-size:26px;font-weight:900;color:${isProx ? '#27ae60' : '#2980b9'};">${isProx ? '🎯' : posNaFila}</div>
-                <div style="font-size:11px;color:#666;font-weight:600;margin-top:2px;">${isProx ? 'Você é o próximo!' : 'na sua frente'}</div>
+              <div style="flex:1;background:${isProx?'rgba(46,204,113,0.1)':'rgba(52,152,219,0.1)'};border:1.5px solid ${isProx?'rgba(46,204,113,0.4)':'rgba(52,152,219,0.3)'};border-radius:14px;padding:12px 10px;text-align:center;">
+                <div style="font-size:26px;font-weight:900;color:${isProx?'#27ae60':'#2980b9'};">${isProx?'🎯':posNaFila}</div>
+                <div style="font-size:11px;color:#666;font-weight:600;margin-top:2px;">${isProx?'Você é o próximo!':'na sua frente'}</div>
               </div>
               <div style="flex:1;background:rgba(241,196,15,0.1);border:1.5px solid rgba(241,196,15,0.4);border-radius:14px;padding:12px 10px;text-align:center;">
-                <div style="font-size:18px;font-weight:900;color:#d4a017;">${isProx ? 'Em breve!' : '~' + etaMin + '-' + etaMax + 'min'}</div>
+                <div style="font-size:18px;font-weight:900;color:#d4a017;">${isProx?'Em breve!':'~'+(posNaFila*MIN)+'-'+(posNaFila*MIN+MIN)+'min'}</div>
                 <div style="font-size:11px;color:#666;font-weight:600;margin-top:2px;">tempo estimado</div>
               </div>
             </div>
-
-            <!-- Total da rota -->
             <div style="padding:8px 12px;background:#f8f8f6;border-radius:12px;display:flex;align-items:center;justify-content:space-between;">
-              <span style="font-size:12px;color:#888;">Paradas restantes na rota</span>
+              <span style="font-size:12px;color:#888;">Paradas restantes</span>
               <span style="font-size:13px;font-weight:800;color:#333;">${totalPendentes} 📍</span>
             </div>
-
-            <!-- Nota -->
-            <div style="font-size:11px;color:#bbb;text-align:center;">Estimativa baseada em ~12 min por parada</div>
-          </div>
-        `;
+            <div style="font-size:11px;color:#bbb;text-align:center;">Estimativa baseada em ~${MIN} min por parada</div>
+          </div>`;
     } catch(e) {
         conteudo.innerHTML = '<div style="color:#e74c3c;font-size:13px;text-align:center;padding:8px 0;">Erro ao carregar informações.</div>';
     }
@@ -1265,9 +1380,11 @@ window.addEventListener('load', () => setTimeout(verificarStatusEntregadorCard, 
 
 // Auto-iniciar ao carregar
 window.addEventListener('load', () => {
-    // Abrir direto sem animação — rastreamento inicia dentro do evento 'load' do mapa
+    // Abrir direto sem animação
     setTimeout(() => {
         _iniciarMapa();
+        _iniciarRastreamento();
+        verificarStatusEntregadorCard();
     }, 200);
 });
 
