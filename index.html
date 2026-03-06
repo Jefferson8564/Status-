@@ -4,366 +4,300 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="theme-color" content="#0a0a0f">
-<title>Entregador · O Rei da Coxinha</title>
+<meta name="theme-color" content="#08080e">
+<title>Acompanhe sua entrega · O Rei da Coxinha</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=DM+Sans:wght@400;500;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
 <link href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css" rel="stylesheet"/>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 :root {
-  --bg: #0a0a0f;
-  --surface: #12121a;
-  --surface2: #1a1a28;
-  --border: rgba(255,255,255,0.07);
-  --gold: #f5c842;
-  --gold2: #e8a020;
-  --green: #22d97a;
-  --red: #ff4d6d;
-  --orange: #ff8c42;
-  --text: #f0eeff;
-  --muted: rgba(240,238,255,0.45);
-  --radius: 18px;
+  --bg: #08080e;
+  --surface: #111118;
+  --surface2: #18181f;
+  --border: rgba(255,255,255,0.06);
+  --gold: #c9a84c;
+  --gold-light: #f0d080;
+  --green: #2ed573;
+  --red: #ff4757;
+  --orange: #ffa502;
+  --text: #ede8ff;
+  --muted: rgba(237,232,255,0.4);
+  --radius: 20px;
 }
 * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-html, body { height: 100%; overflow: hidden; background: var(--bg); font-family: 'Syne', sans-serif; color: var(--text); }
+html, body { height: 100%; overflow: hidden; background: var(--bg); font-family: 'DM Sans', sans-serif; color: var(--text); }
 
 /* ── MAPA ── */
 #map { position: fixed; inset: 0; z-index: 0; }
 .maplibregl-ctrl-attrib, .maplibregl-ctrl-bottom-right, .maplibregl-ctrl-top-right { display:none !important; }
 
+/* Vinheta sobre o mapa */
+.vinheta {
+  position: fixed; inset: 0; z-index: 1; pointer-events: none;
+  background:
+    radial-gradient(ellipse at center, transparent 40%, rgba(8,8,14,0.6) 100%),
+    linear-gradient(to bottom, rgba(8,8,14,0.7) 0%, transparent 30%, transparent 55%, rgba(8,8,14,0.95) 100%);
+}
+
 /* ── HEADER ── */
 #header {
   position: fixed; top: 0; left: 0; right: 0; z-index: 100;
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 14px 16px 10px;
-  background: linear-gradient(to bottom, rgba(10,10,15,0.98), transparent);
-  pointer-events: none;
+  padding: 18px 20px 0;
 }
-#header > * { pointer-events: auto; }
-.header-brand { font-size: 15px; font-weight: 800; letter-spacing: -0.3px; color: var(--gold); }
-.header-brand span { color: var(--text); font-weight: 400; }
-
-/* GPS status pill */
-#gpsPill {
-  display: flex; align-items: center; gap: 6px;
-  background: rgba(10,10,15,0.85); border: 1px solid var(--border);
-  border-radius: 100px; padding: 5px 12px 5px 8px;
-  font-family: 'DM Mono', monospace; font-size: 11px; color: var(--muted);
-  backdrop-filter: blur(10px);
+.header-title {
+  font-family: 'Cormorant Garamond', serif; font-size: 22px; font-weight: 700;
+  letter-spacing: -0.3px; color: var(--gold-light);
 }
-#gpsDot { width: 8px; height: 8px; border-radius: 50%; background: #444; flex-shrink: 0; }
-#gpsDot.ok { background: var(--green); box-shadow: 0 0 6px var(--green); animation: pulse 2s infinite; }
-#gpsDot.err { background: var(--red); }
-@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+.header-sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
 
-/* ── PAINEL INFERIOR ── */
+/* ── PILL STATUS ENTREGADOR ── */
+#pillEnt {
+  position: fixed; top: 70px; left: 16px; right: 16px; z-index: 100;
+  background: rgba(11,11,18,0.88); border: 1px solid rgba(201,168,76,0.25);
+  border-radius: 100px; padding: 9px 16px;
+  display: flex; align-items: center; gap: 10px;
+  backdrop-filter: blur(16px);
+  transition: opacity 0.3s;
+}
+#pillEnt.hidden { opacity: 0; pointer-events: none; }
+.pill-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); flex-shrink: 0;
+  box-shadow: 0 0 6px var(--green); animation: pulse 2s infinite; }
+.pill-dot.off { background: var(--muted); box-shadow: none; animation: none; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
+#pillEntTxt { font-size: 12px; font-weight: 700; flex: 1; }
+#pillEta {
+  font-family: 'DM Mono', monospace; font-size: 11px; color: var(--gold);
+  background: rgba(201,168,76,0.12); padding: 3px 10px; border-radius: 100px;
+}
+
+/* ── PAINEL CLIENTE ── */
 #painel {
   position: fixed; bottom: 0; left: 0; right: 0; z-index: 100;
+  display: flex; flex-direction: column;
+  transition: transform 0.4s cubic-bezier(0.4,0,0.2,1);
+}
+#painel.collapsed { transform: translateY(calc(100% - 130px)); }
+
+/* Card do status do próprio pedido */
+#cardMeuPedido {
+  margin: 0 12px 8px;
+  background: rgba(11,11,18,0.92); border: 1px solid rgba(201,168,76,0.2);
+  border-radius: var(--radius); padding: 16px 18px;
+  backdrop-filter: blur(20px);
+}
+.meu-pedido-label {
+  font-size: 10px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 1.2px; color: var(--gold); margin-bottom: 8px;
+}
+.meu-pedido-status {
+  display: flex; align-items: center; gap: 10px;
+}
+.status-icon { font-size: 24px; }
+.status-info { flex: 1; }
+.status-titulo { font-size: 15px; font-weight: 700; }
+.status-desc   { font-size: 12px; color: var(--muted); margin-top: 1px; }
+.status-badge {
+  padding: 4px 12px; border-radius: 100px;
+  font-size: 11px; font-weight: 700;
+}
+.badge-pendente { background: rgba(255,165,2,0.15); color: var(--orange); }
+.badge-rota     { background: rgba(201,168,76,0.15); color: var(--gold); }
+.badge-entregue { background: rgba(46,213,115,0.15); color: var(--green); }
+.badge-sem      { background: rgba(255,255,255,0.05); color: var(--muted); }
+
+/* Painel principal */
+#painelMain {
   background: var(--surface);
   border-radius: var(--radius) var(--radius) 0 0;
   border-top: 1px solid var(--border);
-  transition: transform 0.35s cubic-bezier(0.4,0,0.2,1);
-  max-height: 80vh;
-  display: flex; flex-direction: column;
+  flex: 1; display: flex; flex-direction: column; max-height: 72vh;
 }
-#painel.collapsed { transform: translateY(calc(100% - 110px)); }
-
-/* Handle */
 #handle {
   width: 36px; height: 4px; border-radius: 2px;
-  background: rgba(255,255,255,0.15); margin: 10px auto 0;
-  cursor: pointer; flex-shrink: 0;
+  background: rgba(255,255,255,0.12); margin: 10px auto 0; cursor: pointer;
 }
-
-/* Resumo topo do painel */
 #painelTopo {
   padding: 12px 18px 14px; cursor: pointer; flex-shrink: 0;
-  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  display: flex; align-items: center; justify-content: space-between;
 }
-.topo-stats { display: flex; gap: 16px; }
-.topo-stat { display: flex; flex-direction: column; align-items: center; gap: 1px; }
-.topo-stat-val { font-size: 22px; font-weight: 800; line-height: 1; }
-.topo-stat-lbl { font-size: 9px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); }
+.painel-titulo { font-family: 'Cormorant Garamond', serif; font-size: 17px; font-weight: 700; }
+.painel-resumo { font-size: 12px; color: var(--muted); }
 
-/* Botão centrar */
-#btnCentrar {
-  background: var(--gold); color: #000; border: none; border-radius: 12px;
-  padding: 9px 14px; font-family: 'Syne', sans-serif; font-size: 12px;
-  font-weight: 800; cursor: pointer; flex-shrink: 0;
-  display: flex; align-items: center; gap: 5px;
+/* Lista de clientes em rota */
+#listaClientes { flex: 1; overflow-y: auto; padding: 0 14px 32px; }
+#listaClientes::-webkit-scrollbar { display: none; }
+
+.cli-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 11px 14px; border-radius: 14px; margin-bottom: 6px;
+  background: var(--surface2); border: 1px solid var(--border);
 }
+.cli-row.eu { border-color: rgba(201,168,76,0.4); background: rgba(201,168,76,0.06); }
+.cli-row.entregue { opacity: 0.5; }
+.cli-row.proxima { border-color: rgba(46,213,115,0.4); background: rgba(46,213,115,0.05); }
 
-/* Lista de paradas */
-#listaParadas { flex: 1; overflow-y: auto; padding: 0 14px 24px; }
-#listaParadas::-webkit-scrollbar { display: none; }
-
-.parada-card {
-  border-radius: 14px; padding: 13px 14px; margin-bottom: 8px;
-  border: 1px solid var(--border); background: var(--surface2);
-  display: flex; align-items: center; gap: 12px; cursor: pointer;
-  transition: border-color 0.2s, background 0.2s;
-  position: relative; overflow: hidden;
-}
-.parada-card.pendente { border-color: rgba(255,140,66,0.3); }
-.parada-card.entregue { border-color: rgba(34,217,122,0.25); background: rgba(34,217,122,0.05); }
-.parada-card.proxima { border-color: var(--gold); background: rgba(245,200,66,0.08); }
-.parada-card.proxima::before {
-  content:''; position:absolute; inset:0; border-radius:14px;
-  box-shadow: 0 0 0 2px var(--gold) inset;
-  animation: glowCard 1.5s ease-in-out infinite alternate;
-}
-@keyframes glowCard { from{opacity:0.4} to{opacity:1} }
-
-.parada-ordem {
-  width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0;
+.cli-num {
+  width: 26px; height: 26px; border-radius: 50%; flex-shrink: 0;
   display: flex; align-items: center; justify-content: center;
-  font-size: 12px; font-weight: 800; font-family: 'DM Mono', monospace;
-  background: rgba(255,255,255,0.08); color: var(--muted);
+  font-size: 11px; font-weight: 800; font-family: 'DM Mono', monospace;
+  background: rgba(255,255,255,0.07); color: var(--muted);
 }
-.parada-card.proxima .parada-ordem { background: var(--gold); color: #000; }
-.parada-card.entregue .parada-ordem { background: rgba(34,217,122,0.2); color: var(--green); }
+.cli-row.eu .cli-num { background: var(--gold); color: #000; }
+.cli-row.entregue .cli-num { background: rgba(46,213,115,0.2); }
 
-.parada-info { flex: 1; min-width: 0; }
-.parada-nome { font-size: 14px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.parada-end { font-size: 11px; color: var(--muted); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.parada-dist { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--muted); flex-shrink: 0; }
+.cli-info { flex: 1; min-width: 0; }
+.cli-nome { font-size: 13px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cli-row.eu .cli-nome::after { content: ' (você)'; font-weight: 400; color: var(--gold); font-size: 11px; }
+.cli-sub  { font-size: 11px; color: var(--muted); margin-top: 1px; }
 
-.parada-status-badge {
-  font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
-  padding: 3px 8px; border-radius: 100px; flex-shrink: 0;
+.cli-badge {
+  font-size: 10px; font-weight: 700; padding: 3px 9px;
+  border-radius: 100px; flex-shrink: 0;
 }
-.badge-pendente { background: rgba(255,140,66,0.15); color: var(--orange); }
-.badge-entregue { background: rgba(34,217,122,0.15); color: var(--green); }
-.badge-proxima  { background: var(--gold); color: #000; }
+.cli-badge.pend { background: rgba(255,165,2,0.12); color: var(--orange); }
+.cli-badge.ent  { background: rgba(46,213,115,0.12); color: var(--green); }
+.cli-badge.prox { background: rgba(201,168,76,0.2); color: var(--gold-light); }
 
-/* ── MODAL DE ENTREGA ── */
-#modalEntrega {
-  position: fixed; inset: 0; z-index: 200;
-  background: rgba(0,0,0,0.7); backdrop-filter: blur(8px);
-  display: none; align-items: flex-end; justify-content: center;
+/* Sem rota */
+#semRota {
+  padding: 30px 18px; text-align: center; color: var(--muted); font-size: 13px;
 }
-#modalEntrega.open { display: flex; }
-#modalBox {
-  background: var(--surface); border-radius: var(--radius) var(--radius) 0 0;
-  border-top: 1px solid var(--border);
-  width: 100%; max-width: 600px; padding: 20px 20px 36px;
-  animation: slideUp 0.3s cubic-bezier(0.4,0,0.2,1);
-}
-@keyframes slideUp { from{transform:translateY(40px);opacity:0} to{transform:translateY(0);opacity:1} }
+#semRota .sr-ico { font-size: 32px; margin-bottom: 8px; }
+#semRota .sr-titulo { font-family: 'Cormorant Garamond', serif; font-size: 18px; color: var(--text); margin-bottom: 6px; }
 
-.modal-nome { font-size: 20px; font-weight: 800; margin-bottom: 4px; }
-.modal-end  { font-size: 13px; color: var(--muted); margin-bottom: 18px; }
-
-.modal-pedido-box {
-  background: var(--surface2); border-radius: 12px; padding: 12px 14px;
-  margin-bottom: 16px; border: 1px solid var(--border);
-  font-size: 13px; line-height: 1.7; color: var(--text);
-}
-.modal-pedido-total { font-weight: 800; font-size: 16px; color: var(--gold); margin-top: 8px; }
-
-.label-sec { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); margin-bottom: 8px; }
-
-/* Pagamento */
-.pag-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 16px; }
-.pag-btn {
-  padding: 12px 10px; border-radius: 12px; border: 2px solid var(--border);
-  background: var(--surface2); color: var(--text); font-family: 'Syne', sans-serif;
-  font-size: 13px; font-weight: 700; cursor: pointer; text-align: center;
-  transition: border-color 0.15s, background 0.15s;
-}
-.pag-btn.sel { border-color: var(--gold); background: rgba(245,200,66,0.12); color: var(--gold); }
-.pag-btn:nth-child(3) { grid-column: 1/-1; }
-
-/* Troco */
-#trocoBox { margin-bottom: 16px; display: none; }
-#trocoInput {
-  width: 100%; padding: 13px 14px; border-radius: 12px;
-  border: 1.5px solid var(--border); background: var(--surface2);
-  color: var(--text); font-family: 'DM Mono', monospace; font-size: 16px;
-  font-weight: 500; outline: none;
-}
-#trocoInput:focus { border-color: var(--gold); }
-
-/* Botões do modal */
-.modal-btns { display: flex; gap: 10px; }
-.btn-cancelar {
-  flex: 1; padding: 14px; border-radius: 14px; border: 1px solid var(--border);
-  background: transparent; color: var(--muted); font-family: 'Syne', sans-serif;
-  font-size: 14px; font-weight: 700; cursor: pointer;
-}
-.btn-confirmar {
-  flex: 2; padding: 14px; border-radius: 14px; border: none;
-  background: var(--green); color: #000; font-family: 'Syne', sans-serif;
-  font-size: 14px; font-weight: 800; cursor: pointer;
-  transition: opacity 0.15s;
-}
-.btn-confirmar:disabled { opacity: 0.4; }
-.btn-confirmar.fiado-btn { background: var(--orange); }
-
-/* ── TOAST ── */
-#toast {
-  position: fixed; top: 70px; left: 50%; transform: translateX(-50%) translateY(-20px);
-  z-index: 300; background: var(--surface2); border: 1px solid var(--border);
-  border-radius: 100px; padding: 10px 20px; font-size: 13px; font-weight: 700;
-  white-space: nowrap; opacity: 0; transition: opacity 0.2s, transform 0.2s;
-  pointer-events: none;
-}
-#toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
-#toast.ok   { border-color: var(--green); color: var(--green); }
-#toast.err  { border-color: var(--red); color: var(--red); }
-#toast.info { border-color: var(--gold); color: var(--gold); }
-
-/* ── ALERTA PROXIMIDADE ── */
-#alertaProx {
-  position: fixed; top: 70px; left: 16px; right: 16px; z-index: 150;
-  background: var(--gold); color: #000; border-radius: 16px;
-  padding: 14px 18px; font-weight: 800; font-size: 14px;
-  display: none; align-items: center; gap: 10px;
-  box-shadow: 0 8px 32px rgba(245,200,66,0.4);
-  animation: bounceIn 0.4s cubic-bezier(0.34,1.56,0.64,1);
-  cursor: pointer;
-}
-#alertaProx.show { display: flex; }
-@keyframes bounceIn { from{transform:scale(0.8);opacity:0} to{transform:scale(1);opacity:1} }
-
-/* marcadores custom */
-.mk-ent { 
-  width: 44px; height: 44px; border-radius: 50%;
+/* ── MARCADORES ── */
+.mk-ent {
+  width: 46px; height: 46px; border-radius: 50%;
   background: var(--gold); border: 3px solid #fff;
   display: flex; align-items: center; justify-content: center;
-  font-size: 22px; box-shadow: 0 4px 16px rgba(245,200,66,0.5);
+  font-size: 22px;
+  box-shadow: 0 4px 20px rgba(201,168,76,0.5);
+  animation: float 3s ease-in-out infinite;
 }
-.mk-cli-pend {
-  width: 36px; height: 36px; border-radius: 50%;
+@keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-4px)} }
+
+.mk-cli {
+  width: 34px; height: 34px; border-radius: 50%;
   background: var(--surface); border: 2px solid var(--orange);
   display: flex; align-items: center; justify-content: center;
-  font-size: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+  font-size: 15px; box-shadow: 0 2px 10px rgba(0,0,0,0.5);
 }
-.mk-cli-ent {
-  width: 32px; height: 32px; border-radius: 50%;
-  background: rgba(34,217,122,0.15); border: 2px solid var(--green);
-  display: flex; align-items: center; justify-content: center;
-  font-size: 14px; opacity: 0.7;
-}
-.mk-num {
-  position: absolute; top: -4px; right: -4px;
-  background: var(--orange); color: #fff; border-radius: 50%;
-  width: 16px; height: 16px; font-size: 9px; font-weight: 800;
-  display: flex; align-items: center; justify-content: center;
-  font-family: 'DM Mono', monospace;
-}
+.mk-cli.eu { border-color: var(--gold); background: rgba(201,168,76,0.15); }
+.mk-cli.ent { border-color: var(--green); opacity: 0.6; }
 
-/* Sem rota ativa */
-#semRota {
-  position: fixed; bottom: 120px; left: 50%; transform: translateX(-50%);
-  z-index: 90; background: rgba(10,10,15,0.85); border: 1px solid var(--border);
-  border-radius: 14px; padding: 10px 18px; font-size: 12px; color: var(--muted);
-  backdrop-filter: blur(10px); text-align: center; white-space: nowrap;
-  display: none;
+/* Linha do caminho */
+
+
+/* ── OVERLAY OFFLINE ── */
+#overlayOffline {
+  position: fixed; inset: 0; z-index: 500;
+  background: rgba(8,8,14,0.92); backdrop-filter: blur(10px);
+  display: none; flex-direction: column; align-items: center; justify-content: center;
+  gap: 12px; padding: 40px;
 }
+#overlayOffline.show { display: flex; }
+#overlayOffline .ov-ico { font-size: 48px; }
+#overlayOffline .ov-titulo { font-family: 'Cormorant Garamond', serif; font-size: 22px; font-weight: 700; text-align: center; }
+#overlayOffline .ov-desc { font-size: 13px; color: var(--muted); text-align: center; }
 </style>
 </head>
 <body>
 
 <div id="map"></div>
+<div class="vinheta"></div>
 
 <!-- Header -->
 <div id="header">
-  <div class="header-brand">🛵 <span>Entregador</span></div>
-  <div id="gpsPill">
-    <div id="gpsDot"></div>
-    <span id="gpsLabel">aguardando GPS</span>
-  </div>
+  <div class="header-title">🍗 Acompanhe sua entrega</div>
+  <div class="header-sub" id="headerSub">verificando entregador...</div>
 </div>
 
-<!-- Alerta de proximidade -->
-<div id="alertaProx" onclick="abrirModalParaProximo()">
-  <span style="font-size:20px">📍</span>
-  <div>
-    <div id="alertaNome">Próximo cliente</div>
-    <div style="font-size:11px;font-weight:400;opacity:0.7">Toque para registrar entrega</div>
-  </div>
+<!-- Pill entregador -->
+<div id="pillEnt" class="hidden">
+  <div class="pill-dot" id="pillDot"></div>
+  <div id="pillEntTxt">Entregador a caminho</div>
+  <div id="pillEta" style="display:none"></div>
 </div>
-
-<!-- Sem rota -->
-<div id="semRota">📡 GPS ativo · Sem rota em andamento</div>
 
 <!-- Painel -->
 <div id="painel" class="collapsed">
-  <div id="handle"></div>
-  <div id="painelTopo">
-    <div class="topo-stats">
-      <div class="topo-stat">
-        <div class="topo-stat-val" id="statTotal" style="color:var(--gold)">0</div>
-        <div class="topo-stat-lbl">total</div>
+  <!-- Card meu pedido -->
+  <div id="cardMeuPedido" style="display:none">
+    <div class="meu-pedido-label">Seu pedido</div>
+    <div class="meu-pedido-status">
+      <div class="status-icon" id="meuIcon">📦</div>
+      <div class="status-info">
+        <div class="status-titulo" id="meuTitulo">Aguardando</div>
+        <div class="status-desc" id="meuDesc"></div>
       </div>
-      <div class="topo-stat">
-        <div class="topo-stat-val" id="statEntregues" style="color:var(--green)">0</div>
-        <div class="topo-stat-lbl">entregues</div>
-      </div>
-      <div class="topo-stat">
-        <div class="topo-stat-val" id="statPendentes" style="color:var(--orange)">0</div>
-        <div class="topo-stat-lbl">restantes</div>
-      </div>
+      <div class="status-badge" id="meuBadge"></div>
     </div>
-    <button id="btnCentrar" onclick="centrarMapa()">📍 Centrar</button>
   </div>
-  <div id="listaParadas"></div>
-</div>
 
-<!-- Modal de entrega -->
-<div id="modalEntrega">
-  <div id="modalBox">
-    <div class="modal-nome" id="mNome"></div>
-    <div class="modal-end" id="mEnd"></div>
-    <div class="modal-pedido-box">
-      <div id="mItens"></div>
-      <div class="modal-pedido-total" id="mTotal"></div>
+  <!-- Painel principal -->
+  <div id="painelMain">
+    <div id="handle"></div>
+    <div id="painelTopo">
+      <div>
+        <div class="painel-titulo">Rota de hoje</div>
+        <div class="painel-resumo" id="painelResumo"></div>
+      </div>
     </div>
-    <div class="label-sec">Forma de pagamento</div>
-    <div class="pag-grid">
-      <button class="pag-btn" onclick="selPag('dinheiro',this)">💵 Dinheiro</button>
-      <button class="pag-btn" onclick="selPag('pix',this)">📲 Pix</button>
-      <button class="pag-btn" onclick="selPag('fiado',this)">📋 Fiado</button>
-    </div>
-    <div id="trocoBox">
-      <div class="label-sec">Troco para quanto?</div>
-      <input id="trocoInput" type="number" placeholder="R$ 0,00" inputmode="decimal">
-    </div>
-    <div class="modal-btns">
-      <button class="btn-cancelar" onclick="fecharModal()">Cancelar</button>
-      <button class="btn-confirmar" id="btnConfirmar" onclick="confirmarEntrega()">✅ Confirmar Entrega</button>
-    </div>
+    <div id="listaClientes"></div>
   </div>
 </div>
 
-<div id="toast"></div>
+<!-- Overlay offline -->
+<div id="overlayOffline">
+  <div class="ov-ico">🛵</div>
+  <div class="ov-titulo">Entregador offline</div>
+  <div class="ov-desc">O entregador ainda não iniciou a rota ou está fora de cobertura. Acompanhe aqui quando a entrega começar.</div>
+</div>
 
 <script>
-// ── CONFIG ──────────────────────────────────────────────────────────────
+// ── CONFIG ────────────────────────────────────────────────────────────────
 const SUPABASE_URL = "https://vpeyqgijajywgswmezlh.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZwZXlxZ2lqYWp5d2dzd21lemxoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEyNTM1MDIsImV4cCI6MjA4NjgyOTUwMn0.LA5Cbof7IKWAA7l8YbCuPzANpCy0rX_Dro4l9fcDgoQ";
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-// Posição da fábrica (centro inicial) — mesma do Adm
-const FABRICA_LAT = -8.1837748; // ajuste se necessário
-const FABRICA_LON = -34.9384996;
-const RAIO_ALERTA = 80; // metros para disparar alerta de proximidade
+const GPS_OFFLINE_THRESH = 5 * 60 * 1000; // 5 min sem atualização = offline
+const FABRICA_COORDS = [-8.1837523, -34.9383004]; // [lat, lng]
+const FABRICA_OFFLINE = [-8.1837782, -34.9384892];
+const FABRICA_LAT = FABRICA_COORDS[0];
+const FABRICA_LON = FABRICA_COORDS[1];
 
-// ── ESTADO ──────────────────────────────────────────────────────────────
-let map, mkEntregador;
-let rotaAtiva = null;       // objeto rota do Supabase
-let paradas = [];           // paradas ativas (sem _meta)
-let posEntregador = null;   // { lat, lon }
-let gpsWatcher = null;
+// ── ESTADO ───────────────────────────────────────────────────────────────
+let map, mkEntregador, rotaPolyline;
+let _entOnline = false;
+let _mapaCarregado = false;
+let rotaAtiva = null;
+let paradas = [];           // paradas com status
+let posEnt = null;          // última posição do entregador
 let realtimeCh = null;
-let alertaPhone = null;     // phone do cliente em alerta
+let checkOfflineTimer = null;
 let painelAberto = false;
-let modalParada = null;     // parada sendo confirmada
-let pagSelecionado = null;
-let mkClientes = {};        // phone → leaflet marker
+let mkClientes = {};
+
+// Telefone do cliente logado (vem via URL ?phone=xxx ou localStorage do cardápio)
+const meuPhone = getMeuPhone();
+
+// ── INIT ─────────────────────────────────────────────────────────────────
+async function init() {
+  initMap();
+  await carregarDados();
+  iniciarRealtime();
+  // Atualiza posição do entregador a cada 8s mesmo sem realtime
+  setInterval(atualizarPosEntregador, 8000);
+}
+
+function getMeuPhone() {
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('phone')) return params.get('phone');
+  try { const a = JSON.parse(localStorage.getItem('salgados_user')||'{}'); const b = JSON.parse(localStorage.getItem('orei_cliente')||'{}'); return a.phone || b.phone || null; }
+  catch { return null; }
+}
 
 // ── MAPA ─────────────────────────────────────────────────────────────────
 function initMap() {
@@ -375,384 +309,286 @@ function initMap() {
   });
 
   map.on('load', () => {
-    // Marcador do entregador
+    // Marcador fábrica
+    const elFab = document.createElement('div');
+    elFab.innerHTML = '<span style="font-size:28px;filter:drop-shadow(0 2px 6px rgba(0,0,0,.5))">⛺</span>';
+    new maplibregl.Marker({ element: elFab, anchor: 'bottom' })
+      .setLngLat([FABRICA_LON, FABRICA_LAT])
+      .addTo(map);
+
+    // Marcador entregador — começa na fábrica, atualiza quando GPS chegar
     const elEnt = document.createElement('div');
     elEnt.className = 'mk-ent';
     elEnt.textContent = '🛵';
     mkEntregador = new maplibregl.Marker({ element: elEnt, anchor: 'center' })
-      .setLngLat([FABRICA_LON, FABRICA_LAT])
+      .setLngLat([FABRICA_OFFLINE[1], FABRICA_OFFLINE[0]])
       .addTo(map);
+    _entOnline = false;
+    _mapaCarregado = true;
+
+    // Mapa pronto — força atualização imediata do GPS e marcadores
+    atualizarPosEntregador();
   });
 }
 
-// ── GPS ──────────────────────────────────────────────────────────────────
-function iniciarGPS() {
-  if (!navigator.geolocation) {
-    setGPSStatus('err', 'GPS indisponível');
-    return;
-  }
-  gpsWatcher = navigator.geolocation.watchPosition(
-    onGPSUpdate,
-    onGPSErro,
-    { enableHighAccuracy: true, maximumAge: 5000, timeout: 15000 }
-  );
-}
-
-async function onGPSUpdate(pos) {
-  const lat = pos.coords.latitude;
-  const lon = pos.coords.longitude;
-  const acc = Math.round(pos.coords.accuracy);
-  posEntregador = { lat, lon };
-
-  setGPSStatus('ok', `±${acc}m`);
-  mkEntregador.setLngLat([lon, lat]);
-
-  // Salva no Supabase — tabela rotas se rota ativa, senão tabela gps
-  await salvarGPS(lat, lon, acc);
-
-  // Atualizar distâncias na lista
-  renderLista();
-
-  // Verificar proximidade
-  verificarProximidade(lat, lon);
-}
-
-function onGPSErro(err) {
-  setGPSStatus('err', 'sem sinal');
-}
-
-function setGPSStatus(tipo, txt) {
-  const dot = document.getElementById('gpsDot');
-  const lbl = document.getElementById('gpsLabel');
-  dot.className = tipo === 'ok' ? 'ok' : 'err';
-  lbl.textContent = txt;
-}
-
-async function salvarGPS(lat, lon, acc) {
-  const now = new Date().toISOString();
-  if (rotaAtiva?.id) {
-    await sb.from('rotas').update({
-      gps_lat: lat, gps_lon: lon,
-      gps_ts: now, gps_precisao: acc,
-      posicao_entregador: { lat, lon, ts: now }
-    }).eq('id', rotaAtiva.id);
-  } else {
-    // Sem rota: salva na tabela gps com chave fixa
-    await sb.from('gps').upsert({ chave: 'entregador_pos', valor: JSON.stringify({ lat, lon, ts: now, acc }) });
-  }
-}
-
-// ── ROTA ────────────────────────────────────────────────────────────────
-async function carregarRota() {
-  // Busca rota ativa de hoje (status criada ou em_andamento)
+// ── DADOS ─────────────────────────────────────────────────────────────────
+async function carregarDados() {
   const hoje = new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
-  const { data } = await sb.from('rotas')
+
+  // Busca rota ativa
+  const { data: rotas } = await sb.from('rotas')
     .select('*')
     .in('status', ['criada', 'em_andamento', 'aguardando'])
     .order('created_at', { ascending: false })
     .limit(1);
 
-  if (data && data.length > 0) {
-    const r = data[0];
-    // Verifica se é de hoje
-    const dtRota = r.saida_em || r.created_at;
-    const dataRota = new Date(dtRota).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
-    if (dataRota === hoje || !r.saida_em) {
-      rotaAtiva = r;
+  rotaAtiva = rotas?.[0] || null;
+  paradas = rotaAtiva ? (rotaAtiva.paradas || []).filter(p => !p._meta) : [];
+
+  // Posição do entregador
+  await atualizarPosEntregador();
+
+  // Renderiza tudo
+  renderTudo();
+}
+
+async function atualizarPosEntregador() {
+  // Fonte única: gps.entregador_pos — sempre em tempo real, independente de rota
+  const { data } = await sb.from('gps').select('valor').eq('chave', 'entregador_gps').maybeSingle();
+  if (data?.valor) {
+    try { posEnt = JSON.parse(data.valor); } catch {}
+  }
+  // Atualiza paradas se tiver rota ativa (para a lista, não para o GPS)
+  if (rotaAtiva?.id) {
+    const { data: r } = await sb.from('rotas')
+      .select('paradas,phones_entregues,entregas_realizadas,status')
+      .eq('id', rotaAtiva.id).single();
+    if (r) {
+      paradas = (r.paradas || []).filter(p => !p._meta);
+      rotaAtiva = { ...rotaAtiva, ...r };
+    }
+  }
+  renderEntregador();
+  renderLista();
+  verificarOffline();
+}
+
+// ── RENDER ENTREGADOR ──────────────────────────────────────────────────────
+function renderEntregador() {
+  const pill = document.getElementById('pillEnt');
+  const dot  = document.getElementById('pillDot');
+  const txt  = document.getElementById('pillEntTxt');
+  const sub  = document.getElementById('headerSub');
+
+  if (!posEnt?.lat) {
+    // entregador offline — fica na fábrica
+    pill.classList.add('hidden');
+    sub.textContent = 'entregador offline';
+    return;
+  }
+
+  // Verifica se GPS é recente
+  const tsMs = posEnt.ts ? new Date(posEnt.ts).getTime() : 0;
+  const online = (Date.now() - tsMs) < GPS_OFFLINE_THRESH;
+
+  if (_mapaCarregado && mkEntregador) {
+    mkEntregador.setLngLat([posEnt.lon, posEnt.lat]);
+  }
+  _entOnline = true;
+  pill.classList.remove('hidden');
+  dot.className = 'pill-dot' + (online ? '' : ' off');
+  txt.textContent = online ? 'Entregador a caminho 🛵' : 'Sinal do entregador fraco';
+
+  // Subtitle
+  const entregues = (rotaAtiva?.entregas_realizadas) || 0;
+  const total = paradas.length;
+  sub.textContent = total > 0
+    ? `${entregues} de ${total} entregas realizadas`
+    : 'entregador online';
+
+  // ETA aproximado (500m/min caminhando ~ 5km/h moto)
+  if (meuPhone && online) {
+    const minha = paradas.find(p => p.cliente_phone === meuPhone);
+    if (minha?.coords) {
+      const [lat, lon] = minha.coords;
+      const d = distancia(posEnt.lat, posEnt.lon, lat, lon);
+      const minutos = Math.max(1, Math.round(d / 500));
+      const etaEl = document.getElementById('pillEta');
+      etaEl.style.display = 'block';
+      etaEl.textContent = `~${minutos} min`;
     }
   }
 
-  paradas = rotaAtiva
-    ? (rotaAtiva.paradas || []).filter(p => !p._meta)
-    : [];
-
-  renderTudo();
-  mostrarSemRota();
+  // Centraliza mapa na primeira vez
+  if (online && _mapaCarregado) map.flyTo({ center: [posEnt.lon, posEnt.lat], zoom: 15, duration: 800 });
 }
 
-function mostrarSemRota() {
-  document.getElementById('semRota').style.display =
-    (!rotaAtiva && paradas.length === 0) ? 'block' : 'none';
+// ── RENDER LISTA ───────────────────────────────────────────────────────────
+function renderLista() {
+  const lista = document.getElementById('listaClientes');
+  const resumo = document.getElementById('painelResumo');
+  const cardMeu = document.getElementById('cardMeuPedido');
+
+  const pendentes = paradas.filter(p => p.status !== 'entregue');
+  const entregues = paradas.filter(p => p.status === 'entregue');
+  const total = paradas.length;
+  const proximaPhone = pendentes[0]?.cliente_phone;
+
+  resumo.textContent = total > 0
+    ? `${entregues.length} entregues · ${pendentes.length} restantes`
+    : 'Aguardando rota';
+
+  // Card do meu pedido
+  if (meuPhone) {
+    const minha = paradas.find(p => p.cliente_phone === meuPhone);
+    if (minha) {
+      cardMeu.style.display = 'block';
+      const entregue = minha.status === 'entregue';
+      const proxima  = minha.cliente_phone === proximaPhone && !entregue;
+      const posicao  = paradas.indexOf(minha) + 1;
+      const pendAnte = paradas.slice(0, paradas.indexOf(minha)).filter(p => p.status !== 'entregue').length;
+
+      document.getElementById('meuIcon').textContent = entregue ? '✅' : (proxima ? '🛵' : '📦');
+      document.getElementById('meuTitulo').textContent = entregue
+        ? 'Pedido entregue!'
+        : (proxima ? 'Entregador chegando!' : `Você é o #${posicao} da fila`);
+      document.getElementById('meuDesc').textContent = entregue
+        ? 'Seu pedido foi entregue com sucesso'
+        : (proxima
+          ? 'O entregador está na sua direção agora'
+          : `${pendAnte} entrega${pendAnte!==1?'s':''} antes de você`);
+      const badge = document.getElementById('meuBadge');
+      badge.textContent = entregue ? 'Entregue' : (proxima ? 'Próximo' : 'Na fila');
+      badge.className = 'status-badge ' + (entregue ? 'badge-entregue' : (proxima ? 'badge-rota' : 'badge-pendente'));
+    } else {
+      cardMeu.style.display = 'none';
+    }
+  } else {
+    cardMeu.style.display = 'none';
+  }
+
+  // Overlay sem rota
+  const overlayOff = document.getElementById('overlayOffline');
+  if (!rotaAtiva && !posEnt?.lat) {
+    overlayOff.classList.add('show');
+    lista.innerHTML = '';
+    return;
+  }
+  overlayOff.classList.remove('show');
+
+  if (paradas.length === 0) {
+    lista.innerHTML = '<div id="semRota"><div class="sr-ico">🗺️</div><div class="sr-titulo">Rota não iniciada</div><div>A lista de entregas de hoje aparecerá aqui</div></div>';
+    return;
+  }
+
+  // Clientes com pedido mostrados por ordem — nome só se show_name=true ou é o próprio
+  const html = paradas.map((p, idx) => {
+    const entregue = p.status === 'entregue';
+    const eu = p.cliente_phone === meuPhone;
+    const proxima = p.cliente_phone === proximaPhone && !entregue;
+
+    const nomeExibir = eu
+      ? (p.nome || 'Você')
+      : (p.show_name !== false ? (p.nome || `Cliente ${idx+1}`) : `Cliente ${idx+1}`);
+
+    const cls = entregue ? 'entregue' : (eu ? 'eu' : (proxima ? 'proxima' : ''));
+    const badge = entregue
+      ? '<span class="cli-badge ent">✓ Entregue</span>'
+      : (proxima
+        ? '<span class="cli-badge prox">🛵 Próximo</span>'
+        : `<span class="cli-badge pend">#${idx+1}</span>`);
+
+    const subTxt = entregue ? 'Entregue ✓' : (proxima ? 'Entregador chegando...' : 'Aguardando');
+
+    return `<div class="cli-row ${cls}">
+      <div class="cli-num">${entregue ? '✓' : idx+1}</div>
+      <div class="cli-info">
+        <div class="cli-nome">${nomeExibir}</div>
+        <div class="cli-sub">${subTxt}</div>
+      </div>
+      ${badge}
+    </div>`;
+  }).join('');
+
+  lista.innerHTML = html;
+
+  // Marcadores no mapa
+  renderMarcadores();
 }
 
-// ── REALTIME ─────────────────────────────────────────────────────────────
-function iniciarRealtime() {
-  if (realtimeCh) sb.removeChannel(realtimeCh);
-  realtimeCh = sb.channel('ent_rota')
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'rotas' }, async () => {
-      await carregarRota();
-    })
-    .subscribe();
-}
-
-// ── RENDER MAPA ───────────────────────────────────────────────────────────
-function renderMarcadoresClientes() {
-  // Remove markers antigos não mais na lista
-  const phonesAtivos = new Set(paradas.map(p => p.cliente_phone).filter(Boolean));
+function renderMarcadores() {
+  const phones = new Set(paradas.map(p => p.cliente_phone).filter(Boolean));
   Object.keys(mkClientes).forEach(ph => {
-    if (!phonesAtivos.has(ph)) { mkClientes[ph].remove(); delete mkClientes[ph]; }
+    if (!phones.has(ph)) { mkClientes[ph].remove(); delete mkClientes[ph]; }
   });
 
   paradas.forEach((p, idx) => {
     if (!p.coords || !p.cliente_phone) return;
     const [lat, lon] = p.coords;
     if (!lat || !lon) return;
+
     const entregue = p.status === 'entregue';
-    const ordem = idx + 1;
+    const eu = p.cliente_phone === meuPhone;
 
     const el = document.createElement('div');
-    el.style.position = 'relative';
-    const inner = document.createElement('div');
-    inner.className = entregue ? 'mk-cli-ent' : 'mk-cli-pend';
-    inner.textContent = entregue ? '✅' : '🏠';
-    el.appendChild(inner);
-    if (!entregue) {
-      const num = document.createElement('div');
-      num.className = 'mk-num';
-      num.textContent = ordem;
-      el.appendChild(num);
-    }
+    el.className = 'mk-cli' + (eu ? ' eu' : '') + (entregue ? ' ent' : '');
+    el.textContent = eu ? '⭐' : (entregue ? '✅' : '🏠');
 
 
+    if (!_mapaCarregado) return; // mapa ainda não pronto
     if (mkClientes[p.cliente_phone]) {
       mkClientes[p.cliente_phone].setLngLat([lon, lat]);
     } else {
-      const mk = new maplibregl.Marker({ element: el, anchor: 'center' })
-        .setLngLat([lon, lat])
-        .addTo(map);
-      el.addEventListener('click', () => abrirModal(p));
-      mkClientes[p.cliente_phone] = mk;
+      mkClientes[p.cliente_phone] = new maplibregl.Marker({ element: el, anchor: 'center' })
+        .setLngLat([lon, lat]).addTo(map);
     }
   });
 }
 
-// ── RENDER LISTA ──────────────────────────────────────────────────────────
-function renderLista() {
-  const lista = document.getElementById('listaParadas');
-  const pendentes = paradas.filter(p => p.status !== 'entregue');
-  const entregues = paradas.filter(p => p.status === 'entregue');
-
-  // Stats
-  document.getElementById('statTotal').textContent = paradas.length;
-  document.getElementById('statEntregues').textContent = entregues.length;
-  document.getElementById('statPendentes').textContent = pendentes.length;
-
-  if (paradas.length === 0) {
-    lista.innerHTML = '<div style="text-align:center;padding:30px;color:var(--muted);font-size:13px;">Nenhuma parada na rota de hoje</div>';
-    return;
-  }
-
-  // Próxima parada = primeiro pendente
-  const proximaPhone = pendentes[0]?.cliente_phone;
-
-  const html = paradas.map((p, idx) => {
-    const entregue = p.status === 'entregue';
-    const proxima = p.cliente_phone === proximaPhone && !entregue;
-    const dist = distanciaStr(p);
-
-    const cls = entregue ? 'entregue' : (proxima ? 'proxima' : 'pendente');
-    const badge = entregue
-      ? '<span class="parada-status-badge badge-entregue">✓ Entregue</span>'
-      : (proxima
-        ? '<span class="parada-status-badge badge-proxima">Próxima</span>'
-        : `<span class="parada-status-badge badge-pendente">#${idx+1}</span>`);
-
-    return `<div class="parada-card ${cls}" onclick="abrirModal(paradas[${idx}])">
-      <div class="parada-ordem">${entregue ? '✓' : idx+1}</div>
-      <div class="parada-info">
-        <div class="parada-nome">${p.nome || 'Cliente'}</div>
-        <div class="parada-end">${p.endereco || 'Endereço não definido'}</div>
-      </div>
-      ${dist ? `<div class="parada-dist">${dist}</div>` : ''}
-      ${badge}
-    </div>`;
-  }).join('');
-
-  lista.innerHTML = html;
-}
-
-function distanciaStr(p) {
-  if (!posEntregador || !p.coords) return '';
-  const [lat, lon] = p.coords;
-  const d = distancia(posEntregador.lat, posEntregador.lon, lat, lon);
-  if (d < 1000) return `${Math.round(d)}m`;
-  return `${(d/1000).toFixed(1)}km`;
-}
-
-function renderTudo() {
-  renderMarcadoresClientes();
-  renderLista();
-}
-
-// ── PROXIMIDADE ───────────────────────────────────────────────────────────
-function verificarProximidade(lat, lon) {
-  const pendentes = paradas.filter(p => p.status !== 'entregue' && p.coords);
-  if (pendentes.length === 0) { esconderAlerta(); return; }
-
-  const prox = pendentes[0]; // primeiro pendente
-  const [pLat, pLon] = prox.coords;
-  const d = distancia(lat, lon, pLat, pLon);
-
-  if (d <= RAIO_ALERTA) {
-    mostrarAlerta(prox);
+// ── OFFLINE CHECK ─────────────────────────────────────────────────────────
+function verificarOffline() {
+  if (!posEnt?.ts) return;
+  const tsMs = new Date(posEnt.ts).getTime();
+  const offline = (Date.now() - tsMs) > GPS_OFFLINE_THRESH;
+  // Overlay só se offline E sem rota
+  if (offline && !rotaAtiva) {
+    document.getElementById('overlayOffline').classList.add('show');
   } else {
-    esconderAlerta();
+    document.getElementById('overlayOffline').classList.remove('show');
   }
 }
 
-function mostrarAlerta(p) {
-  alertaPhone = p.cliente_phone;
-  document.getElementById('alertaNome').textContent = `📦 ${p.nome || 'Cliente'} — toque para registrar`;
-  document.getElementById('alertaProx').classList.add('show');
+// ── REALTIME ─────────────────────────────────────────────────────────────
+function iniciarRealtime() {
+  if (realtimeCh) sb.removeChannel(realtimeCh);
+  realtimeCh = sb.channel('stats_cliente')
+    // GPS do entregador — atualiza só a moto, rápido
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'gps',
+        filter: "chave=eq.entregador_pos" }, async () => {
+      await atualizarPosEntregador();
+    })
+    // Rotas — atualiza lista de paradas/status
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'rotas' }, async () => {
+      await carregarDados();
+    })
+    .subscribe();
 }
 
-function esconderAlerta() {
-  alertaPhone = null;
-  document.getElementById('alertaProx').classList.remove('show');
-}
-
-function abrirModalParaProximo() {
-  const p = paradas.find(x => x.cliente_phone === alertaPhone);
-  if (p) abrirModal(p);
-}
-
-// ── MODAL DE ENTREGA ──────────────────────────────────────────────────────
-async function abrirModal(p) {
-  if (p.status === 'entregue') return; // já entregue, ignora
-  modalParada = p;
-  pagSelecionado = null;
-
-  // Busca pedido do cliente no ciclo atual
-  const { data: pedidos } = await sb.from('pedidos')
-    .select('*')
-    .eq('customer_phone', p.cliente_phone)
-    .eq('entregue', false)
-    .order('created_at', { ascending: false })
-    .limit(1);
-
-  const pedido = pedidos?.[0];
-  modalParada._pedido = pedido;
-
-  document.getElementById('mNome').textContent = p.nome || 'Cliente';
-  document.getElementById('mEnd').textContent = p.endereco || '';
-
-  if (pedido) {
-    document.getElementById('mItens').textContent = (pedido.items || '').replace(/✅ /g, '');
-    document.getElementById('mTotal').textContent = `Total: R$ ${Number(pedido.total || 0).toFixed(2).replace('.', ',')}`;
-  } else {
-    document.getElementById('mItens').textContent = 'Sem pedido pendente registrado';
-    document.getElementById('mTotal').textContent = '';
-  }
-
-  // Reset pagamento
-  document.querySelectorAll('.pag-btn').forEach(b => b.classList.remove('sel'));
-  document.getElementById('trocoBox').style.display = 'none';
-  document.getElementById('trocoInput').value = '';
-  document.getElementById('btnConfirmar').disabled = true;
-
-  document.getElementById('modalEntrega').classList.add('open');
-}
-
-function fecharModal() {
-  document.getElementById('modalEntrega').classList.remove('open');
-  modalParada = null;
-  pagSelecionado = null;
-}
-
-function selPag(tipo, btn) {
-  pagSelecionado = tipo;
-  document.querySelectorAll('.pag-btn').forEach(b => b.classList.remove('sel'));
-  btn.classList.add('sel');
-  document.getElementById('trocoBox').style.display = tipo === 'dinheiro' ? 'block' : 'none';
-  const conf = document.getElementById('btnConfirmar');
-  conf.disabled = false;
-  conf.className = tipo === 'fiado' ? 'btn-confirmar fiado-btn' : 'btn-confirmar';
-  conf.textContent = tipo === 'fiado' ? '📋 Registrar Fiado' : '✅ Confirmar Entrega';
-}
-
-async function confirmarEntrega() {
-  if (!modalParada || !pagSelecionado) return;
-  const btn = document.getElementById('btnConfirmar');
-  btn.disabled = true;
-  btn.textContent = 'Salvando...';
-
-  const p = modalParada;
-  const pedido = p._pedido;
-  const agora = new Date().toISOString();
-
-  try {
-    // 1. Marca parada como entregue na rota
-    if (rotaAtiva?.id) {
-      const novasParadas = (rotaAtiva.paradas || []).map(x => {
-        if (!x._meta && x.cliente_phone === p.cliente_phone) {
-          return { ...x, status: 'entregue', entregue_em: agora, pagamento: pagSelecionado };
-        }
-        return x;
-      });
-      const entreguesCount = novasParadas.filter(x => !x._meta && x.status === 'entregue').length;
-      await sb.from('rotas').update({
-        paradas: novasParadas,
-        phones_entregues: [...(rotaAtiva.phones_entregues || []), p.cliente_phone],
-        entregas_realizadas: entreguesCount
-      }).eq('id', rotaAtiva.id);
-    }
-
-    // 2. Marca pedido como entregue
-    if (pedido?.id) {
-      const upd = {
-        entregue: true,
-        entregue_em: agora,
-        payment_method: pagSelecionado,
-        status_entrega: 'entregue'
-      };
-      if (pagSelecionado === 'fiado') {
-        upd.payment_method = 'FIADO';
-      }
-      await sb.from('pedidos').update(upd).eq('id', pedido.id);
-
-      // 3. Se fiado: atualiza débito do cliente
-      if (pagSelecionado === 'fiado') {
-        const { data: cli } = await sb.from('clientes').select('debt').eq('phone', p.cliente_phone).maybeSingle();
-        const debtAtual = parseFloat(cli?.debt || 0);
-        await sb.from('clientes').update({
-          debt: debtAtual + Number(pedido.total || 0),
-          fiado: true
-        }).eq('phone', p.cliente_phone);
-      }
-    }
-
-    fecharModal();
-    esconderAlerta();
-    showToast('✅ Entrega confirmada!', 'ok');
-
-    // Recarrega rota
-    await carregarRota();
-
-  } catch(e) {
-    console.error(e);
-    showToast('Erro ao salvar', 'err');
-    btn.disabled = false;
-    btn.textContent = '✅ Confirmar Entrega';
-  }
-}
-
-// ── PAINEL TOGGLE ─────────────────────────────────────────────────────────
+// ── PAINEL ────────────────────────────────────────────────────────────────
 document.getElementById('handle').addEventListener('click', togglePainel);
 document.getElementById('painelTopo').addEventListener('click', togglePainel);
-
 function togglePainel() {
   painelAberto = !painelAberto;
   document.getElementById('painel').classList.toggle('collapsed', !painelAberto);
 }
 
-// ── CENTRAR MAPA ──────────────────────────────────────────────────────────
-function centrarMapa() {
-  if (posEntregador) {
-    map.flyTo({ center: [posEntregador.lon, posEntregador.lat], zoom: 15 });
-  }
+// ── RENDER TUDO ───────────────────────────────────────────────────────────
+function renderTudo() {
+  renderEntregador();
+  renderLista();
 }
 
-// ── DISTÂNCIA (Haversine) ─────────────────────────────────────────────────
+// ── DISTÂNCIA ─────────────────────────────────────────────────────────────
 function distancia(lat1, lon1, lat2, lon2) {
   const R = 6371000;
   const φ1 = lat1 * Math.PI/180, φ2 = lat2 * Math.PI/180;
@@ -760,24 +596,6 @@ function distancia(lat1, lon1, lat2, lon2) {
   const Δλ = (lon2-lon1) * Math.PI/180;
   const a = Math.sin(Δφ/2)**2 + Math.cos(φ1)*Math.cos(φ2)*Math.sin(Δλ/2)**2;
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-}
-
-// ── TOAST ─────────────────────────────────────────────────────────────────
-let _toastTimer;
-function showToast(msg, tipo='info') {
-  const t = document.getElementById('toast');
-  t.textContent = msg;
-  t.className = `show ${tipo}`;
-  clearTimeout(_toastTimer);
-  _toastTimer = setTimeout(() => t.className = '', 3000);
-}
-
-// ── INIT ──────────────────────────────────────────────────────────────────
-async function init() {
-  initMap();
-  iniciarGPS();
-  await carregarRota();
-  iniciarRealtime();
 }
 
 init();
