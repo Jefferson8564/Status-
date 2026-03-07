@@ -54,22 +54,24 @@ html, body { height: 100%; overflow: hidden; background: var(--bg); font-family:
 
 /* ── PILL STATUS ENTREGADOR ── */
 #pillEnt {
-  position: fixed; top: 70px; left: 16px; right: 16px; z-index: 100;
+  position: fixed; top: 16px; right: 16px; z-index: 200;
   background: rgba(11,11,18,0.88); border: 1px solid rgba(201,168,76,0.25);
-  border-radius: 100px; padding: 9px 16px;
-  display: flex; align-items: center; gap: 10px;
+  border-radius: 12px; padding: 7px 11px;
+  display: flex; flex-direction: column; align-items: flex-start; gap: 3px;
   backdrop-filter: blur(16px);
   transition: opacity 0.3s;
+  min-width: 0;
 }
 #pillEnt.hidden { opacity: 0; pointer-events: none; }
-.pill-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); flex-shrink: 0;
-  box-shadow: 0 0 6px var(--green); animation: pulse 2s infinite; }
-.pill-dot.off { background: var(--muted); box-shadow: none; animation: none; }
+.pill-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); flex-shrink: 0;
+  box-shadow: 0 0 5px var(--green); animation: pulse 2s infinite; }
+.pill-dot.off { background: var(--red); box-shadow: 0 0 5px var(--red); animation: none; }
 @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
-#pillEntTxt { font-size: 12px; font-weight: 700; flex: 1; }
+#pillEntTxt { font-size: 11px; font-weight: 700; }
+#pillRow { display: flex; align-items: center; gap: 6px; }
+#pillSemSinal { font-size: 10px; color: var(--red); font-family: 'DM Mono', monospace; display: none; }
 #pillEta {
-  font-family: 'DM Mono', monospace; font-size: 11px; color: var(--gold);
-  background: rgba(201,168,76,0.12); padding: 3px 10px; border-radius: 100px;
+  font-family: 'DM Mono', monospace; font-size: 10px; color: var(--muted);
 }
 
 /* ── PAINEL CLIENTE ── */
@@ -160,6 +162,25 @@ html, body { height: 100%; overflow: hidden; background: var(--bg); font-family:
 .cli-badge.ent  { background: rgba(46,213,115,0.12); color: var(--green); }
 .cli-badge.prox { background: rgba(201,168,76,0.2); color: var(--gold-light); }
 
+/* ── BOTÃO 2D/3D ── */
+#btn3D {
+  position: fixed; right: 14px; top: 50%; transform: translateY(-50%);
+  z-index: 110; writing-mode: vertical-rl; text-orientation: mixed;
+  background: rgba(10,10,18,0.88); border: 1.5px solid rgba(201,168,76,0.35);
+  border-radius: 10px; padding: 12px 8px;
+  font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 800;
+  color: rgba(201,168,76,0.8); cursor: pointer;
+  backdrop-filter: blur(12px); letter-spacing: 1px;
+  box-shadow: 0 2px 14px rgba(0,0,0,0.5);
+  transition: all 0.2s; display: none;
+}
+#btn3D.ativo {
+  background: rgba(201,168,76,0.15);
+  border-color: var(--gold);
+  color: var(--gold);
+  box-shadow: 0 2px 20px rgba(201,168,76,0.3);
+}
+
 /* Sem rota */
 #semRota {
   padding: 30px 18px; text-align: center; color: var(--muted); font-size: 13px;
@@ -216,9 +237,11 @@ html, body { height: 100%; overflow: hidden; background: var(--bg); font-family:
 
 <!-- Pill entregador -->
 <div id="pillEnt" class="hidden">
-  <div class="pill-dot" id="pillDot"></div>
-  <div id="pillEntTxt">Entregador a caminho</div>
-  <div id="pillEta" style="display:none"></div>
+  <div id="pillRow">
+    <div class="pill-dot" id="pillDot"></div>
+    <div id="pillEntTxt">GPS ativo</div>
+  </div>
+  <div id="pillSemSinal"></div>
 </div>
 
 <!-- Painel -->
@@ -249,6 +272,9 @@ html, body { height: 100%; overflow: hidden; background: var(--bg); font-family:
   </div>
 </div>
 
+<!-- Botão 3D -->
+<button id="btn3D" onclick="toggle3D()">3D</button>
+
 <!-- Overlay offline -->
 <div id="overlayOffline">
   <div class="ov-ico">🛵</div>
@@ -262,7 +288,7 @@ const SUPABASE_URL = "https://vpeyqgijajywgswmezlh.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZwZXlxZ2lqYWp5d2dzd21lemxoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEyNTM1MDIsImV4cCI6MjA4NjgyOTUwMn0.LA5Cbof7IKWAA7l8YbCuPzANpCy0rX_Dro4l9fcDgoQ";
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-const GPS_OFFLINE_THRESH = 5 * 60 * 1000; // 5 min sem atualização = offline
+const GPS_OFFLINE_THRESH = 5 * 1000; // 5s sem atualização = inativo
 const FABRICA_COORDS = [-8.1837523, -34.9383004]; // [lat, lng]
 const FABRICA_OFFLINE = [-8.1837782, -34.9384892];
 const FABRICA_LAT = FABRICA_COORDS[0];
@@ -272,6 +298,7 @@ const FABRICA_LON = FABRICA_COORDS[1];
 let map, mkEntregador, rotaPolyline;
 let _entOnline = false;
 let _mapaCarregado = false;
+let _onlineSince = null; // timestamp quando entregador ficou online
 let rotaAtiva = null;
 let paradas = [];           // paradas com status
 let posEnt = null;          // última posição do entregador
@@ -284,12 +311,61 @@ let mkClientes = {};
 const meuPhone = getMeuPhone();
 
 // ── INIT ─────────────────────────────────────────────────────────────────
+function _calcBearing(lat1, lon1, lat2, lon2) {
+  const r = d => d * Math.PI / 180;
+  const dL = r(lon2 - lon1);
+  const y  = Math.sin(dL) * Math.cos(r(lat2));
+  const x  = Math.cos(r(lat1)) * Math.sin(r(lat2)) - Math.sin(r(lat1)) * Math.cos(r(lat2)) * Math.cos(dL);
+  return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
+}
+function _suavizarBearing(b) {
+  _bearingHist.push(b);
+  if (_bearingHist.length > 6) _bearingHist.shift();
+  let s = 0, co = 0;
+  _bearingHist.forEach(v => { s += Math.sin(v*Math.PI/180); co += Math.cos(v*Math.PI/180); });
+  return (Math.atan2(s, co) * 180 / Math.PI + 360) % 360;
+}
+function toggle3D() {
+  _modo3D = !_modo3D;
+  const btn = document.getElementById('btn3D');
+  btn.classList.toggle('ativo', _modo3D);
+  btn.textContent = _modo3D ? '2D' : '3D';
+  if (!map || !_mapaCarregado) return;
+  if (_modo3D && posEnt?.lat) {
+    map.easeTo({ center:[posEnt.lon, posEnt.lat], pitch:72, bearing:_bearingAtual, zoom:18.5, duration:900 });
+  } else {
+    map.easeTo({ pitch:0, bearing:0, zoom:15, duration:700 });
+  }
+}
+
+
 async function init() {
   initMap();
   await carregarDados();
   iniciarRealtime();
-  // Atualiza posição do entregador a cada 8s mesmo sem realtime
-  setInterval(atualizarPosEntregador, 8000);
+  // GPS-only poll a cada 2s — única fonte de verdade para o status
+  setInterval(atualizarPosEntregador, 2000);
+
+  // Contador visual a cada 1s — atualiza o "sem sinal há Xs" sem depender do polling
+  setInterval(() => {
+    if (!posEnt?.ts) return;
+    const tsMs = new Date(posEnt.ts).getTime();
+    const diffMs = Date.now() - tsMs;
+    const online = diffMs < GPS_OFFLINE_THRESH;
+    const dot = document.getElementById('pillDot');
+    const txt = document.getElementById('pillEntTxt');
+    const semSinalEl = document.getElementById('pillSemSinal');
+    if (!dot || !txt || !semSinalEl) return;
+    dot.className = 'pill-dot' + (online ? '' : ' off');
+    txt.textContent = online ? 'GPS ativo' : 'GPS inativo';
+    if (!online) {
+      const segs = Math.floor(diffMs / 1000);
+      semSinalEl.style.display = 'block';
+      semSinalEl.textContent = segs < 60 ? `sem sinal há ${segs}s` : `sem sinal há ${Math.floor(segs/60)}min`;
+    } else {
+      semSinalEl.style.display = 'none';
+    }
+  }, 1000);
 }
 
 function getMeuPhone() {
@@ -318,7 +394,7 @@ function initMap() {
 
     // Marcador entregador — começa na fábrica, atualiza quando GPS chegar
     const elEnt = document.createElement('div');
-    elEnt.className = 'mk-ent';
+    elEnt.style.cssText = 'width:46px;height:46px;border-radius:50%;background:#c9a84c;border:3px solid #fff;display:flex;align-items:center;justify-content:center;font-size:22px;box-shadow:0 4px 20px rgba(201,168,76,0.5);cursor:pointer;';
     elEnt.textContent = '🛵';
     mkEntregador = new maplibregl.Marker({ element: elEnt, anchor: 'center' })
       .setLngLat([FABRICA_OFFLINE[1], FABRICA_OFFLINE[0]])
@@ -353,22 +429,29 @@ async function carregarDados() {
 }
 
 async function atualizarPosEntregador() {
-  // Fonte única: gps.entregador_pos — sempre em tempo real, independente de rota
-  const { data } = await sb.from('gps').select('valor').eq('chave', 'entregador_gps').maybeSingle();
-  if (data?.valor) {
-    try { posEnt = JSON.parse(data.valor); } catch {}
-  }
-  // Atualiza paradas se tiver rota ativa (para a lista, não para o GPS)
-  if (rotaAtiva?.id) {
-    const { data: r } = await sb.from('rotas')
-      .select('paradas,phones_entregues,entregas_realizadas,status')
-      .eq('id', rotaAtiva.id).single();
-    if (r) {
-      paradas = (r.paradas || []).filter(p => !p._meta);
-      rotaAtiva = { ...rotaAtiva, ...r };
+  try {
+    const { data, error } = await sb.from('gps').select('valor').eq('chave', 'entregador_gps').maybeSingle();
+    if (!error) {
+      posEnt = data?.valor ? JSON.parse(data.valor) : null;
     }
-  }
+  } catch(e) { /* ignora erro de rede */ }
   renderEntregador();
+}
+
+async function atualizarTudo() {
+  await atualizarPosEntregador();
+  // Atualiza paradas se tiver rota ativa
+  if (rotaAtiva?.id) {
+    try {
+      const { data: r } = await sb.from('rotas')
+        .select('paradas,phones_entregues,entregas_realizadas,status')
+        .eq('id', rotaAtiva.id).single();
+      if (r) {
+        paradas = (r.paradas || []).filter(p => !p._meta);
+        rotaAtiva = { ...rotaAtiva, ...r };
+      }
+    } catch(e) {}
+  }
   renderLista();
   verificarOffline();
 }
@@ -379,25 +462,37 @@ function renderEntregador() {
   const dot  = document.getElementById('pillDot');
   const txt  = document.getElementById('pillEntTxt');
   const sub  = document.getElementById('headerSub');
+  const semSinalEl = document.getElementById('pillSemSinal');
 
+  // Sem dados nenhum ainda
   if (!posEnt?.lat) {
-    // entregador offline — fica na fábrica
-    pill.classList.add('hidden');
+    pill.classList.remove('hidden');
+    dot.className = 'pill-dot off';
+    txt.textContent = 'GPS inativo';
+    semSinalEl.style.display = 'none';
     sub.textContent = 'entregador offline';
     return;
   }
 
-  // Verifica se GPS é recente
   const tsMs = posEnt.ts ? new Date(posEnt.ts).getTime() : 0;
-  const online = (Date.now() - tsMs) < GPS_OFFLINE_THRESH;
+  const diffMs = Date.now() - tsMs;
+  const online = diffMs < GPS_OFFLINE_THRESH;
+
+  pill.classList.remove('hidden');
+  dot.className = 'pill-dot' + (online ? '' : ' off');
+  txt.textContent = online ? 'GPS ativo' : 'GPS inativo';
+
+  if (!online) {
+    const segs = Math.floor(diffMs / 1000);
+    semSinalEl.style.display = 'block';
+    semSinalEl.textContent = segs < 60 ? `sem sinal há ${segs}s` : `sem sinal há ${Math.floor(segs/60)}min`;
+  } else {
+    semSinalEl.style.display = 'none';
+  }
 
   if (_mapaCarregado && mkEntregador) {
     mkEntregador.setLngLat([posEnt.lon, posEnt.lat]);
   }
-  _entOnline = true;
-  pill.classList.remove('hidden');
-  dot.className = 'pill-dot' + (online ? '' : ' off');
-  txt.textContent = online ? 'Entregador a caminho 🛵' : 'Sinal do entregador fraco';
 
   // Subtitle
   const entregues = (rotaAtiva?.entregas_realizadas) || 0;
@@ -406,21 +501,29 @@ function renderEntregador() {
     ? `${entregues} de ${total} entregas realizadas`
     : 'entregador online';
 
-  // ETA aproximado (500m/min caminhando ~ 5km/h moto)
-  if (meuPhone && online) {
-    const minha = paradas.find(p => p.cliente_phone === meuPhone);
-    if (minha?.coords) {
-      const [lat, lon] = minha.coords;
-      const d = distancia(posEnt.lat, posEnt.lon, lat, lon);
-      const minutos = Math.max(1, Math.round(d / 500));
-      const etaEl = document.getElementById('pillEta');
-      etaEl.style.display = 'block';
-      etaEl.textContent = `~${minutos} min`;
+  // Centraliza mapa na primeira vez
+  // Calcular bearing (direção do movimento)
+  if (_ultimaPosAnterior) {
+    const dLat = Math.abs(posEnt.lat - _ultimaPosAnterior[0]);
+    const dLon = Math.abs(posEnt.lon - _ultimaPosAnterior[1]);
+    if (dLat + dLon > 0.00003) {
+      const raw = _calcBearing(_ultimaPosAnterior[0], _ultimaPosAnterior[1], posEnt.lat, posEnt.lon);
+      _bearingAtual = _suavizarBearing(raw);
     }
   }
+  _ultimaPosAnterior = [posEnt.lat, posEnt.lon];
 
-  // Centraliza mapa na primeira vez
-  if (online && _mapaCarregado) map.flyTo({ center: [posEnt.lon, posEnt.lat], zoom: 15, duration: 800 });
+  // Mostrar botão 3D
+  document.getElementById('btn3D').style.display = 'block';
+
+  // Câmera: segue moto em 3D ou centra em 2D
+  if (_mapaCarregado) {
+    if (_modo3D) {
+      map.easeTo({ center:[posEnt.lon, posEnt.lat], bearing:_bearingAtual, pitch:72, zoom:18.5, duration:800, essential:true });
+    } else {
+      map.easeTo({ center:[posEnt.lon, posEnt.lat], zoom:15, duration:600 });
+    }
+  }
 }
 
 // ── RENDER LISTA ───────────────────────────────────────────────────────────
@@ -531,7 +634,10 @@ function renderMarcadores() {
     const eu = p.cliente_phone === meuPhone;
 
     const el = document.createElement('div');
-    el.className = 'mk-cli' + (eu ? ' eu' : '') + (entregue ? ' ent' : '');
+    const _bg = eu ? 'rgba(201,168,76,0.15)' : (entregue ? 'rgba(34,34,34,0.8)' : '#18181f');
+    const _border = eu ? '#c9a84c' : (entregue ? '#2ed573' : '#ffa502');
+    const _op = entregue ? '0.6' : '1';
+    el.style.cssText = `width:34px;height:34px;border-radius:50%;background:${_bg};border:2px solid ${_border};display:flex;align-items:center;justify-content:center;font-size:15px;box-shadow:0 2px 10px rgba(0,0,0,.5);opacity:${_op};`;
     el.textContent = eu ? '⭐' : (entregue ? '✅' : '🏠');
 
 
@@ -564,10 +670,9 @@ function iniciarRealtime() {
   realtimeCh = sb.channel('stats_cliente')
     // GPS do entregador — atualiza só a moto, rápido
     .on('postgres_changes', { event: '*', schema: 'public', table: 'gps',
-        filter: "chave=eq.entregador_pos" }, async () => {
+        filter: "chave=eq.entregador_gps" }, async () => {
       await atualizarPosEntregador();
     })
-    // Rotas — atualiza lista de paradas/status
     .on('postgres_changes', { event: '*', schema: 'public', table: 'rotas' }, async () => {
       await carregarDados();
     })
@@ -597,6 +702,25 @@ function distancia(lat1, lon1, lat2, lon2) {
   const a = Math.sin(Δφ/2)**2 + Math.cos(φ1)*Math.cos(φ2)*Math.sin(Δλ/2)**2;
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
 }
+
+// ── TEMPO ONLINE ─────────────────────────────────────────────────────────
+let _tempoTimer = null;
+let _semSinalTimer = null;
+
+function tempoRelativo(tsISO) {
+  if (!tsISO) return '';
+  const diff = Math.floor((Date.now() - new Date(tsISO).getTime()) / 1000);
+  if (diff < 60)  return `online há ${diff}s`;
+  if (diff < 3600) return `online há ${Math.floor(diff/60)}min`;
+  return `online há ${Math.floor(diff/3600)}h${Math.floor((diff%3600)/60)}min`;
+}
+
+// Quando o usuário volta à aba (mobile pausa timers em background)
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') {
+    atualizarPosEntregador();
+  }
+});
 
 init();
 </script>
