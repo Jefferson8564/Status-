@@ -52,143 +52,142 @@ html, body { height: 100%; overflow: hidden; background: var(--bg); font-family:
 }
 .header-sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
 
-/* ── PILL STATUS ENTREGADOR ── */
+/* ── PILL STATUS GPS ── */
 #pillEnt {
-  position: fixed; top: 16px; right: 16px; z-index: 200;
-  background: rgba(11,11,18,0.88); border: 1px solid rgba(201,168,76,0.25);
-  border-radius: 12px; padding: 7px 11px;
-  display: flex; flex-direction: column; align-items: flex-start; gap: 3px;
-  backdrop-filter: blur(16px);
-  transition: opacity 0.3s;
-  min-width: 0;
+  position: fixed; top: 0; right: 0; z-index: 200;
+  background: transparent; border: none;
+  padding: 8px 12px;
+  display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
+  transition: all 0.3s;
 }
 #pillEnt.hidden { opacity: 0; pointer-events: none; }
-.pill-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); flex-shrink: 0;
-  box-shadow: 0 0 5px var(--green); animation: pulse 2s infinite; }
-.pill-dot.off { background: var(--red); box-shadow: 0 0 5px var(--red); animation: none; }
-@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
-#pillEntTxt { font-size: 11px; font-weight: 700; }
-#pillRow { display: flex; align-items: center; gap: 6px; }
-#pillSemSinal { font-size: 10px; color: var(--red); font-family: 'DM Mono', monospace; display: none; }
-#pillEta {
-  font-family: 'DM Mono', monospace; font-size: 10px; color: var(--muted);
+#pillTopRow {
+  display: flex; align-items: center; gap: 6px;
+}
+#pillLabel {
+  font-size: 10px; font-weight: 800; letter-spacing: 2px;
+  text-transform: uppercase; color: var(--gold);
+  font-family: 'DM Mono', monospace;
+  text-shadow: 0 1px 6px rgba(0,0,0,0.9);
+}
+#pillSemSinal {
+  font-size: 10px; color: var(--muted);
+  font-family: 'DM Mono', monospace;
+  text-shadow: 0 1px 6px rgba(0,0,0,0.9);
+}
+#pillRow { display: flex; align-items: center; gap: 5px; }
+.pill-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.pill-dot.green  { background: var(--green);  box-shadow: 0 0 6px var(--green);  animation: pulse 2s infinite; }
+.pill-dot.orange { background: var(--orange); box-shadow: 0 0 6px var(--orange); animation: pulse 1.2s infinite; }
+.pill-dot.red    { background: var(--red);    box-shadow: 0 0 6px var(--red);    animation: none; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.2} }
+#pillEntTxt { font-size: 12px; font-weight: 800; text-shadow: 0 1px 6px rgba(0,0,0,0.9); }
+#pillEntTxt.green  { color: var(--green); }
+#pillEntTxt.orange { color: var(--orange); }
+#pillEntTxt.red    { color: var(--red); }
+
+/* ── BOTÃO ⚠️ ── */
+#btnInfo {
+  position: fixed; bottom: 28px; right: 18px; z-index: 200;
+  width: 52px; height: 52px; border-radius: 50%;
+  background: rgba(8,8,14,0.88); border: 1.5px solid rgba(201,168,76,0.4);
+  font-size: 24px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  backdrop-filter: blur(16px);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+  transition: all 0.2s;
+}
+#btnInfo:active { transform: scale(0.92); }
+#btnInfo .badge {
+  position: absolute; top: -4px; right: -4px;
+  width: 16px; height: 16px; border-radius: 50%;
+  background: var(--gold); color: #000;
+  font-size: 9px; font-weight: 900;
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'DM Mono', monospace;
 }
 
-/* ── PAINEL CLIENTE ── */
-#painel {
-  position: fixed; bottom: 0; left: 0; right: 0; z-index: 100;
-  display: flex; flex-direction: column;
-  transition: transform 0.4s cubic-bezier(0.4,0,0.2,1);
+/* ── MODAL INFO ── */
+#modalInfo {
+  position: fixed; inset: 0; z-index: 400;
+  background: rgba(0,0,0,0.6); backdrop-filter: blur(8px);
+  display: flex; align-items: flex-end; justify-content: center;
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.3s;
 }
-#painel.collapsed { transform: translateY(calc(100% - 130px)); }
+#modalInfo.show { opacity: 1; pointer-events: all; }
+#modalBox {
+  width: 100%; max-width: 480px;
+  background: var(--surface);
+  border-radius: 24px 24px 0 0;
+  border-top: 1px solid rgba(201,168,76,0.2);
+  padding: 0 0 40px;
+  transform: translateY(100%);
+  transition: transform 0.35s cubic-bezier(0.4,0,0.2,1);
+  max-height: 80vh; display: flex; flex-direction: column;
+}
+#modalInfo.show #modalBox { transform: translateY(0); }
+#modalHandle {
+  width: 36px; height: 4px; border-radius: 2px;
+  background: rgba(255,255,255,0.12); margin: 12px auto 0; cursor: pointer; flex-shrink:0;
+}
+#modalTopo {
+  padding: 14px 20px 10px; flex-shrink:0;
+  display: flex; align-items: center; justify-content: space-between;
+  border-bottom: 1px solid var(--border);
+}
+#modalTitulo { font-family: 'Cormorant Garamond', serif; font-size: 18px; font-weight: 700; }
+#modalResumo { font-size: 11px; color: var(--muted); margin-top: 2px; }
+#modalFechar {
+  background: rgba(255,255,255,0.06); border: none; border-radius: 50%;
+  width: 30px; height: 30px; color: var(--muted); font-size: 16px;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+}
 
-/* Card do status do próprio pedido */
-#cardMeuPedido {
-  margin: 0 12px 8px;
-  background: rgba(11,11,18,0.92); border: 1px solid rgba(201,168,76,0.2);
-  border-radius: var(--radius); padding: 16px 18px;
-  backdrop-filter: blur(20px);
+/* Card meu pedido dentro do modal */
+#modalCardMeu {
+  margin: 14px 16px 0; flex-shrink:0;
+  background: rgba(201,168,76,0.06); border: 1px solid rgba(201,168,76,0.25);
+  border-radius: 14px; padding: 14px 16px;
 }
-.meu-pedido-label {
-  font-size: 10px; font-weight: 700; text-transform: uppercase;
-  letter-spacing: 1.2px; color: var(--gold); margin-bottom: 8px;
-}
-.meu-pedido-status {
-  display: flex; align-items: center; gap: 10px;
-}
-.status-icon { font-size: 24px; }
+.meu-pedido-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.2px; color: var(--gold); margin-bottom: 8px; }
+.meu-pedido-status { display: flex; align-items: center; gap: 10px; }
+.status-icon { font-size: 22px; }
 .status-info { flex: 1; }
-.status-titulo { font-size: 15px; font-weight: 700; }
-.status-desc   { font-size: 12px; color: var(--muted); margin-top: 1px; }
-.status-badge {
-  padding: 4px 12px; border-radius: 100px;
-  font-size: 11px; font-weight: 700;
-}
+.status-titulo { font-size: 14px; font-weight: 700; }
+.status-desc   { font-size: 11px; color: var(--muted); margin-top: 1px; }
+.status-badge  { padding: 4px 12px; border-radius: 100px; font-size: 11px; font-weight: 700; }
 .badge-pendente { background: rgba(255,165,2,0.15); color: var(--orange); }
 .badge-rota     { background: rgba(201,168,76,0.15); color: var(--gold); }
 .badge-entregue { background: rgba(46,213,115,0.15); color: var(--green); }
-.badge-sem      { background: rgba(255,255,255,0.05); color: var(--muted); }
 
-/* Painel principal */
-#painelMain {
-  background: var(--surface);
-  border-radius: var(--radius) var(--radius) 0 0;
-  border-top: 1px solid var(--border);
-  flex: 1; display: flex; flex-direction: column; max-height: 72vh;
-}
-#handle {
-  width: 36px; height: 4px; border-radius: 2px;
-  background: rgba(255,255,255,0.12); margin: 10px auto 0; cursor: pointer;
-}
-#painelTopo {
-  padding: 12px 18px 14px; cursor: pointer; flex-shrink: 0;
-  display: flex; align-items: center; justify-content: space-between;
-}
-.painel-titulo { font-family: 'Cormorant Garamond', serif; font-size: 17px; font-weight: 700; }
-.painel-resumo { font-size: 12px; color: var(--muted); }
-
-/* Lista de clientes em rota */
-#listaClientes { flex: 1; overflow-y: auto; padding: 0 14px 32px; }
-#listaClientes::-webkit-scrollbar { display: none; }
-
+/* Lista clientes no modal */
+#modalLista { flex:1; overflow-y: auto; padding: 10px 16px 0; }
+#modalLista::-webkit-scrollbar { display: none; }
 .cli-row {
   display: flex; align-items: center; gap: 12px;
-  padding: 11px 14px; border-radius: 14px; margin-bottom: 6px;
+  padding: 10px 13px; border-radius: 14px; margin-bottom: 6px;
   background: var(--surface2); border: 1px solid var(--border);
 }
-.cli-row.eu { border-color: rgba(201,168,76,0.4); background: rgba(201,168,76,0.06); }
-.cli-row.entregue { opacity: 0.5; }
-.cli-row.proxima { border-color: rgba(46,213,115,0.4); background: rgba(46,213,115,0.05); }
-
+.cli-row.eu      { border-color: rgba(201,168,76,0.4); background: rgba(201,168,76,0.06); }
+.cli-row.entregue { opacity: 0.45; }
+.cli-row.proxima  { border-color: rgba(46,213,115,0.4); background: rgba(46,213,115,0.05); }
 .cli-num {
   width: 26px; height: 26px; border-radius: 50%; flex-shrink: 0;
   display: flex; align-items: center; justify-content: center;
   font-size: 11px; font-weight: 800; font-family: 'DM Mono', monospace;
   background: rgba(255,255,255,0.07); color: var(--muted);
 }
-.cli-row.eu .cli-num { background: var(--gold); color: #000; }
+.cli-row.eu .cli-num      { background: var(--gold); color: #000; }
 .cli-row.entregue .cli-num { background: rgba(46,213,115,0.2); }
-
 .cli-info { flex: 1; min-width: 0; }
 .cli-nome { font-size: 13px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .cli-row.eu .cli-nome::after { content: ' (você)'; font-weight: 400; color: var(--gold); font-size: 11px; }
 .cli-sub  { font-size: 11px; color: var(--muted); margin-top: 1px; }
-
-.cli-badge {
-  font-size: 10px; font-weight: 700; padding: 3px 9px;
-  border-radius: 100px; flex-shrink: 0;
-}
+.cli-badge { font-size: 10px; font-weight: 700; padding: 3px 9px; border-radius: 100px; flex-shrink: 0; }
 .cli-badge.pend { background: rgba(255,165,2,0.12); color: var(--orange); }
 .cli-badge.ent  { background: rgba(46,213,115,0.12); color: var(--green); }
-.cli-badge.prox { background: rgba(201,168,76,0.2); color: var(--gold-light); }
-
-/* ── BOTÃO 2D/3D ── */
-#btn3D {
-  position: fixed; right: 14px; top: 50%; transform: translateY(-50%);
-  z-index: 110; writing-mode: vertical-rl; text-orientation: mixed;
-  background: rgba(10,10,18,0.88); border: 1.5px solid rgba(201,168,76,0.35);
-  border-radius: 10px; padding: 12px 8px;
-  font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 800;
-  color: rgba(201,168,76,0.8); cursor: pointer;
-  backdrop-filter: blur(12px); letter-spacing: 1px;
-  box-shadow: 0 2px 14px rgba(0,0,0,0.5);
-  transition: all 0.2s; display: none;
-}
-#btn3D.ativo {
-  background: rgba(201,168,76,0.15);
-  border-color: var(--gold);
-  color: var(--gold);
-  box-shadow: 0 2px 20px rgba(201,168,76,0.3);
-}
-
-/* Sem rota */
-#semRota {
-  padding: 30px 18px; text-align: center; color: var(--muted); font-size: 13px;
-}
-#semRota .sr-ico { font-size: 32px; margin-bottom: 8px; }
-#semRota .sr-titulo { font-family: 'Cormorant Garamond', serif; font-size: 18px; color: var(--text); margin-bottom: 6px; }
-
-/* ── MARCADORES ── */
+.cli-badge.prox { background: rgba(201,168,76,0.2); color: var(--gold-light); } */
 .mk-ent {
   width: 46px; height: 46px; border-radius: 50%;
   background: var(--gold); border: 3px solid #fff;
@@ -222,58 +221,104 @@ html, body { height: 100%; overflow: hidden; background: var(--bg); font-family:
 #overlayOffline .ov-ico { font-size: 48px; }
 #overlayOffline .ov-titulo { font-family: 'Cormorant Garamond', serif; font-size: 22px; font-weight: 700; text-align: center; }
 #overlayOffline .ov-desc { font-size: 13px; color: var(--muted); text-align: center; }
+
+/* ── OVERLAY LOADING ── */
+#overlayLoading {
+  position: fixed; inset: 0; z-index: 999;
+  background: var(--bg);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 16px;
+  transition: opacity 0.5s ease;
+}
+#overlayLoading.fadeout { opacity: 0; pointer-events: none; }
+#overlayLoading.hidden  { display: none; }
+.load-icon {
+  width: 72px; height: 72px; border-radius: 18px;
+  box-shadow: 0 8px 32px rgba(201,168,76,0.3);
+  animation: loadBounce 1.2s ease-in-out infinite;
+}
+@keyframes loadBounce {
+  0%,100% { transform: translateY(0) scale(1); }
+  50%      { transform: translateY(-12px) scale(1.05); }
+}
+.load-titulo {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 20px; font-weight: 700; color: var(--gold-light);
+  letter-spacing: 0.5px;
+}
+.load-dots { display: flex; gap: 6px; }
+.load-dots span {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--gold); opacity: 0.3;
+  animation: loadDot 1.2s ease-in-out infinite;
+}
+.load-dots span:nth-child(2) { animation-delay: 0.2s; }
+.load-dots span:nth-child(3) { animation-delay: 0.4s; }
+@keyframes loadDot { 0%,80%,100%{opacity:0.3} 40%{opacity:1} }
 </style>
 </head>
 <body>
+
+
+<div id="overlayLoading">
+  <img class="load-icon" src="data:image/webp;base64,UklGRiATAABXRUJQVlA4WAoAAAAQAAAAbQAAbQAAQUxQSF4AAAABUOO2baT/f9pTT1hAt0bEBLA1JbkyZU+l8ImU3pbae1J9Q8ovpf5CBKeiqBXJQTSVIioU1aeU7/8/YVx4SpgghAdKWDB2QAsD5vux2o71bmztxe5WHGzE4TZc2YKtVlA4IJwSAABwSwCdASpuAG4APhkKhEEhBY7zZgQAYS1AE6coKh/Db8B+Un7M/B3WH7N/WP0P+23+b5jOqvMm6W/zf5d/1L4beujzDP1S/vv9A9cX+V+3jzKfrP+ufvT+i39jP937gH8u/nPrP/6b2KP209gD9jPS4/bj4K/2m/8H+L+A/9dP+h+f/cAZhfwp8XHo72l/d73r86fW5/geg38k+8f5r+7frz+WXzH4d+qX1FPyL+X/4X8qvzE+jT4Dwd7Qegj7SfVv87/ev3F87XWY8JewB/If5v/kPyZ+IP8x/dPIs+3f679bvgA/l/9Y/2f+F/a3/VfSf/W/9//S/lV7U/zj/E/8r/Q/uX/mPsE/k39E/zX96/cn/Jf///ofer7HP2q9lX9VD6Nffx5oVnNhXQ9d9xhSrVfAN59Cqxl9bLH7Rp6MSYPtX5edtiWOn1N97NOS8qhnpy4T7rRD232kzZyd4B+Koeo0C1ClP1cQrWOyVnyGSJzTP2bppE52+Ye4J64bsOwZj26vzf/4pspNrlrwECGpY2PdnJ0iltuyuAouCpNbtFzcYQBKWHRPqPQ2oeRlL6C/37Ts3uo1CgZJhpbxVS6ljvpb2UZPxx0g0lD8gI/onQRaOFG2hagyzv6m+v1TE3tQT27IcUbfDd28j3ooVWHeKu693ASoBRjrA6LGhsA6MFUOiFzvuc5Ko/0QX20s9CTdbQuXNkkvn+W82CXDe/3+/qTNyrma+rLkylhve60peETSLJeDsXq7WFuFVPryLfMeHTh0uDc4kFzX7lifk8n3HqABiksveHkQvIlbkWE4TqsC9IAA/v85x5AqyFSxPPlgK4ZOrJjCcaHuOf5x1pMv90rmi7+ToZVaOIY5qstkgCCSXNRDCp4Rgu7do2gItT/y97uZRZPN7Io0rrYRL8/kbwqlD/6O08b2nYoUhnDZOlGklm4xFpSsm7ow9UOYNqruhWfJMY+xilkxk/+IBvYoccJiOg7O6eRIEzZcfk5CnWLEp6X9QbL5QcQewDWErYO7HKbOSbQQ6Q1QLZ6SZ6LuMkfoVyYr+YAJj7cOffcobL0jL6VGq+tOV6cyActvRh+sFt8JmPuwMrWBGj/Sfl4XJw1+wFmh7DEQjc6uKJH9YT4CgFVrxUQzLmFENgM7FXf7ORhO1oCGFf3KNh+Z99FGSgRBZ88DkAyB4eJUIYDfYIJXqC+WmkuZex51dZSx8ShxpAQ0MDmleQ+7Ofe85NV8c8uk735sFuA3Lz4v+w3jd27kFaVkMCG8gHRmRGsJjMo59qlfynCRe2SGVWBlamOx9G7AJTubgj5sJmANtbaooOxjOOJ4A4/SsjlXoK1ltYERTiY0D2rM82k+sb7uKPGz7urZCJl0JKYmuATGIQARSMMqduRewafAD7HPMoDagAoCzMTgE9JQnDwuno6jNVZhp8tTdUrnIcdsJAM0PR9nes/Nc/CT1qdFepveVwEM36PvZlx05Fk+9bCYlbK3cDEfV0gf9nuBSo111fn7DrBolX9yCApVJRXyNWa4Y5rS010/+geH9rZA5U6Oc24FHbcUCI20sMRQaZfaFK2bR5N/Y8dQpWa3mzyH+gp5TGgXpIeBL3EHYuk1UqA9GraMqCyDLG71x9kA3l3YXbKOtrLv7v1jJyYueg7ZHs569g0ciBdFL0e7G3WlytZsqvQd/QuHFUuvceCeK6gXIdhUia99spgmmtCMhJ6cyFFsiikYsjs4eMENDVSY7I30DLHhpgWnfSUjZ2LN+r/9Mfz5oqqcVzpET/VHlwnRieZyiFkG4Xmnale6AO5U3i3XWrp9SgkX3OJQ+MGu3EDpg0AmGOkEOIn5oLR5Yl915TRcUwtTIQSRz1ve6zWfpPtMyWSERA2ppg0Xd98p85ZOLBvLJFjIEiSx06y17ihkcUjC76pKUSVu302/42/6fiKAfxsRqwc17F18iyp/t5EEcaYDImEAu2QVRRx7Iyk/o28vW55YHqx34ehjWSINTCZLYHB4dWp8YzsZWLbNv2uZo3cwzzCv4FSVtC6BovYDRr9dL/AM4Es6t9cWyD/h7Ry3y51k1Ns19WE7bZFeoTXsOiOyTB1zg/TLLS8wRIsq6Xt9sExh6Gphuqc60ersDmv052wcPs6ulJWqjVdwzMLiSIiJZhK8k6x4uiGMoxTxZX6uP1Shz0lxBk3G8qrhBWL2DgL4wPjFoCwoGbeHit3QTemO8QC0jC4gjG8uCLBIONnwTwagipwWHJcvOUgsMkFTu/iX2dha5izKqyxK9YN5hc7LJhRNiuJIsxkh0gniGGKlNQXTfik8zXaSPAprE7aSh6HIkd8PuP+kHhTSf3cT4e5YPq+gEEg4yS2h2iVZ7LgHGHgtC6WfhZcLRsq8vPaNhx170FWUvAIyVsm2dGAvtTQopunl9dtUQvjh+E88dKCJ+DyLLZ0GTXj0W7V0YPzkBqYaNV2zM6jhl3TGhTbfXVGGZw/i49ewCmbSQMJbMhWIzlGARY7Mt6lg1g31t22rsX9mgZ3IDvMlj8OXqgZZX9AqF50s6U/CHtzEWl+eoMDNHa8MBpJZXyIdV3n/r9xYD/Jqod52h4BSPi6KhUDBYHARZsRSUvO0SfjjyueIaWagShKLXTfzlENfaP8Xo0eeiFrxonb9S9NfQFwnZnxvO+sMBmUkAoZlu54NM+6hE5x76QRSB/ZIaXGgiFc9lxzJeatILkB4VZejWmOBr5sMaxeap/cmUi2hMb0ziRpLAQr2yTANmMSiqswVmG/hkNHCilYVTK1matnKnKgrZtllXHQhSqAZRoCurWmVLXEQ+/91bfkWWUCurKpj+f5tyPnALTjw3PulpJSdJAi1TwWdFXkssYQ4BZfIoie0s+df1R5b+Gu9kKhzfbO81yzpB6Gv1vW62qJVq6DbCMQWDxbJYaxRBdQCrSilt7XVPB20m35DH5LMViuhSpmc/yVUtCWS6ITgRJskHECATmjrEJQtxh1dbbd+mdh9GOBHC2x2ooH+96zmrFpmvNJZUtjIDwR69ZaMeKg79DX/nTYUm0/QKVX+UtT+NnBrWqpcMSJx1nUN5WE10V1VqtQfZqxzi+EGsNUqgMvAUdVVRQU2TXkTbaqwMoC9zKoQrLYqNPHBDQhVtbptl2aSBJFJesgONmi8Urt7wuOnKChdd7dSnkhvbYL1x4F5+P/ndFonv82CKVTA6z8XjbeX+IaQPdIdVYq/A/VIr6x+ttmToNV6/8vdyhJa7J2igk9EPMuwVN27oBxWsL10XqGBU9jKGAZLm7ZpQ2dd74Ijie7cXmqCR9wJhMLWtlSXlBtkz19vowWA5A3lezlRyex2ftB/g1OxSNM6nDlAK3kswW/YXeYHJx4HNRJIcsJR9lSpb8g1jN7XJsim0VSoCjvHny3j7KW4cYwKJUKRxz59Dqf+5hOsUbLaxF1lSd/13tg6txshF6C6WEfcW5DvHln19Ze9Syq1NN7cuiY5SCqrc/eNIwvA8g/RTxZ/UEGVaZGmpl3QvxQHf7stoAQrU7yEEMq3HKBswv5hTCZip2KNMH4PzWBsChmSt1pEvsHewf0YyHFhnhBIrxyYgwzLcspu2RNcVPik1etxWc9heY+yOH67hm91RP39DkPIH7cIo11mvZCPhQaRJXZSPBcvcrBV8PsKy4wsOWsYyIONPNe1AZSzauqlujPUr/WOcGXDjeeKs6+2EdDgei5+qpWFgllWfrSymtWB6jJirUjNY7GN/x3QRmusphxxCuheI8sPFIMRfsfqF5kdUqkSh8PpUj6yn7EVEI/H6C2YH4SlCH6GmwxstzD6DEK98TGfdG4II3F/Ukg+hQ0sFbnO3w6bVgQwbRvyB9lN8bU47jlXWdQMMWcFfnOViuYmHzarBPW13RBZX+tJHqqY4CaDCWYjyeph3uVtRwETtTmtLKG8re5SAL1PqUpMrCY+ik5+GEquQ32mmWrdqiPW9GZNdK72DYA3O/lrF5IcWrI+X/ZlYtsksUai6y6rYg5jic6q1YKiqZLoHiTSWDGUdmVL/J3yMaW8sVQm9go0lzjkDVdrm7ZavuqKqNBZgTqQvTuTdqRUF04eGuA7pI/6kah/XhhpvDsEMHJ1a2jVE6ZCAvOpWJlEfOBOOFUOc1n6RznUmAWy/T75oPkD2hd5xPmuDpNRv+JKt5sAEHhu7u6yqTydRi38Hv2MDFUygq8Oain/avkBpFfxV/IfD5cpaYLn9Ed3nP/soF0Cw6MCK4tIgX5BX+n+zc1FqdSB4+yzxBIA9r7ij98p0jWQjLwftuq3PBwtHmHiQ0ZT3OrAH0eTcqJ+8/+8ARsNW/md04OAI8CpxhKIeUaF3yRlmPbpaxqV1VZ6N5Q2T+ABaOlQT7xjdlEDJ3IAw+ovOd6kMy1OYduAxhqzW6udAl7TDClMXjWd//eemeknWwpo360pWAcSAyJckFigHu4nxtmsfhCSLsqK8t883wyEbti8uouht2xNRWPaAHq7Q+ylR3DHv4PFH17dnwFDlW7p0/e6oNhtEdodvOtipOFdBAn/26sQzf3yx58IzxTif/Qs77QloOrbbCkx6Tj9Ql2gjYip/eCHJl5mVX/z5UBFdbF9XZ2T7zM6d/5t/Zts5f/o8jyyZYOQcIw6VfOnEw+Dbe3OEXQneS7z1DuUU7FO5VL8uNZ+GOwV8SFBuSCiTmKO8pF34xd+0f0TBVF2VAM2IjtVMyN+wYycGVSTG0XeMQrpxOwd80DAsJXIsjgtc0CJ5fs4J0BYnF9wUqtf1TWAQ9SLXyG4ZcRIcOxKE0vCU78655YDSiLiYG+BQRLJcUwY0C35Z/oQ8QwkWcwgVK/RzNdV5hauZ1Ed9G/EHKkbgdP3FQWnG3wjPfj6bbqxJH2G0s56gb4xJ0qigc0tnuthR5x6Ov1cjGcAtMTBJrXLNmLbF1NhpTKW+S+E8zduDKIWrCkuzjTdDoZx1dLHTgDLpa2kI1QFw3JUVCP7iIX8LLw4sapEJWXduEnPSQYX9z9Ujf662TTKsaxBZspd6S9OrAGxzOci6j4tt8NL/5mwP475lQitkNizWyckyJY0BuOXztdXAMWL1c5R2dRZTfxYreidH7WIq9RXiZGU3Vu2ksMzMCW0nvt+73ehJedg72vRt1h7Fydp7EdgWJBnBR1ZlueeExlAABXDzbV/mzz4Fm5keaWm2s2YACDdF9xxtTBY1yGJPlPvmrv1/yC8yEFe2E1uLjjIvDri1FBeg02W41OcRprjE1dO0yRjCDOo+fXhltIuJXwI0P8iwVy6EiDJ0BPHN7I1/4aWHfEeqZYhyd1aAOl8lvsH9K364LR5D68QcErZ1Iax2x+mNOK9zmoweED+THHxj/xIPfudhkvPg9LX0/6pJOsuhhqrc0Wjv4w7Lu7DoleW+xHV9ay65kQ68R4WT0PHY/Bq093LcjCGL7CT4aM3x9OCbWFAQYS74FUTuvKb/0L0qRZMJ58sYbJ9twa4YP4JQY+Ier6tkp5OpugHke13vk1NRc3sX1nz5QMEkQ9IO2mE3oH2wuikoZjC7pxJkYXbBSfphpUbeWYU9jCSN2WYiRe98pg0nAdSIEeUKWWPWd/9AbuWHPxi/XJvUlu2BU06Epg4fOoN3i9+Ar4tgZVoRpN9d8hWYz2Slarl5lUKOy4gdTr9pJjJIG7ekOL3I4DesG7c1Om7SwApqRP+gMxVHDjLIsVv0ZJPpTyvyM7VSkImn9zmZ49nKbzm3Hg3ub6vZuQL+G7HW2znt7xZdk4npy3KR5udtcpDv0/V5NYO0FuKJJNbG44xKf6FfcRxssTIMWo66NcLYnXvmYqaU/kvcfn1zTmyaKWkgDst5LcYbUe+H8MSAszRZljwoO5SSE+ktXz+Q9F6MUpoyZC+jqS7J7z2TbjvN6MJfKU2hUyRx8m8p9xwxzNhi6/oEsGFVSXRNJ3vgdYkl+DZtIBkFS6eX5046eMiQcMdxpo6qmXausQ9Ng5xScUEvh70oczEZtzBZOWmBGOiGVAPcOg3J1CuKEZca+wyn4y6QMa0HZ8gSbGuhZ4Qg4e96w4n/mGtncEpG8x2JXbULSln7Q+IufgK1X+/caimS14ycRrUdPMIHjmiOequ7GAOdnAP1qh2Ung5UbJOHTitVyr7au4HgsKSiPpp14RA2otAVzqdg3YbQtHb3F8m1rKgoOCfE//M88pC2xb0AfEcitwJti5wtMObOz470b8xLIGUqNDVxIGFJj9+VBO3UAvXHpjV7qzawBTUQhHnJ66PStKsvsSG54oD9Or4D4TC1THwbY9/PtNSsMQ324RPD/3r/Li2O++bTiaLHp7rqzNYVQJ43Ob2i+w+7J0H8s7+NplvxaqGct6hBVwAAAA=">
+  <div class="load-titulo">Acompanhe sua entrega</div>
+  <div class="load-dots"><span></span><span></span><span></span></div>
+</div>
 
 <div id="map"></div>
 <div class="vinheta"></div>
 
 <!-- Header -->
 <div id="header">
-  <div class="header-title">🍗 Acompanhe sua entrega</div>
-  <div class="header-sub" id="headerSub">verificando entregador...</div>
+  <div class="header-title"><img src="data:image/webp;base64,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" style="width:32px;height:32px;border-radius:10px;vertical-align:middle;margin-right:8px;box-shadow:0 2px 8px rgba(0,0,0,0.4);">Acompanhe sua entrega</div>
+  <div class="header-sub" id="headerSub"></div>
 </div>
 
-<!-- Pill entregador -->
+<!-- Pill GPS -->
 <div id="pillEnt" class="hidden">
+  <div id="pillTopRow">
+    <span id="pillLabel">GPS</span>
+    <span id="pillSemSinal">—</span>
+  </div>
   <div id="pillRow">
-    <div class="pill-dot" id="pillDot"></div>
-    <div id="pillEntTxt">GPS ativo</div>
+    <div class="pill-dot red" id="pillDot"></div>
+    <div id="pillEntTxt" class="red">Offline</div>
   </div>
-  <div id="pillSemSinal"></div>
 </div>
 
-<!-- Painel -->
-<div id="painel" class="collapsed">
-  <!-- Card meu pedido -->
-  <div id="cardMeuPedido" style="display:none">
-    <div class="meu-pedido-label">Seu pedido</div>
-    <div class="meu-pedido-status">
-      <div class="status-icon" id="meuIcon">📦</div>
-      <div class="status-info">
-        <div class="status-titulo" id="meuTitulo">Aguardando</div>
-        <div class="status-desc" id="meuDesc"></div>
-      </div>
-      <div class="status-badge" id="meuBadge"></div>
-    </div>
-  </div>
 
-  <!-- Painel principal -->
-  <div id="painelMain">
-    <div id="handle"></div>
-    <div id="painelTopo">
+<!-- Botão ⚠️ info -->
+<button id="btnInfo" onclick="abrirModal()">
+  ⚠️
+  <span class="badge" id="badgeInfo" style="display:none">0</span>
+</button>
+
+<!-- Modal informações -->
+<div id="modalInfo" onclick="fecharModalFora(event)">
+  <div id="modalBox">
+    <div id="modalHandle" onclick="fecharModal()"></div>
+    <div id="modalTopo">
       <div>
-        <div class="painel-titulo">Rota de hoje</div>
-        <div class="painel-resumo" id="painelResumo"></div>
+        <div id="modalTitulo">Rota de hoje</div>
+        <div id="modalResumo"></div>
+      </div>
+      <button id="modalFechar" onclick="fecharModal()">✕</button>
+    </div>
+    <div id="modalCardMeu" style="display:none">
+      <div class="meu-pedido-label">Seu pedido</div>
+      <div class="meu-pedido-status">
+        <div class="status-icon" id="meuIcon">📦</div>
+        <div class="status-info">
+          <div class="status-titulo" id="meuTitulo">Aguardando</div>
+          <div class="status-desc" id="meuDesc"></div>
+        </div>
+        <div class="status-badge" id="meuBadge"></div>
       </div>
     </div>
-    <div id="listaClientes"></div>
+    <div id="modalLista"></div>
   </div>
 </div>
-
-<!-- Botão 3D -->
-<button id="btn3D" onclick="toggle3D()">3D</button>
 
 <!-- Overlay offline -->
 <div id="overlayOffline">
@@ -288,7 +333,7 @@ const SUPABASE_URL = "https://vpeyqgijajywgswmezlh.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZwZXlxZ2lqYWp5d2dzd21lemxoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEyNTM1MDIsImV4cCI6MjA4NjgyOTUwMn0.LA5Cbof7IKWAA7l8YbCuPzANpCy0rX_Dro4l9fcDgoQ";
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-const GPS_OFFLINE_THRESH = 5 * 1000; // 5s sem atualização = inativo
+const GPS_OFFLINE_THRESH = 10 * 1000; // 10s sem atualização = inativo
 const FABRICA_COORDS = [-8.1837523, -34.9383004]; // [lat, lng]
 const FABRICA_OFFLINE = [-8.1837782, -34.9384892];
 const FABRICA_LAT = FABRICA_COORDS[0];
@@ -304,8 +349,41 @@ let paradas = [];           // paradas com status
 let posEnt = null;          // última posição do entregador
 let realtimeCh = null;
 let checkOfflineTimer = null;
-let painelAberto = false;
 let mkClientes = {};
+// Variáveis de bearing/câmera — precisam ser declaradas ou causam ReferenceError silencioso
+let _bearingHist = [];
+let _bearingAtual = 0;
+let _ultimaPosAnterior = null;
+// ── Controle de câmera ────────────────────────────────────────────────────
+let _clienteInteragiu = false;
+let _timerInatividade = null;
+const INATIVIDADE_MS = 10000; // 10s sem toque → centraliza na moto
+
+// Centraliza câmera na moto estilo Waze: pitch alto, moto no terço inferior
+function _centralizarMoto(duration = 800) {
+  if (!map || !_mapaCarregado || !posEnt?.lat) return;
+  // offset: desloca o centro para cima para que a moto fique na parte de baixo da tela
+  map.easeTo({
+    center: [posEnt.lon, posEnt.lat],
+    pitch: 72,
+    bearing: _bearingAtual,
+    zoom: 18.5,
+    duration,
+    offset: [0, 120], // empurra o ponto de referência 120px para baixo = moto fica no fundo
+    essential: true
+  });
+}
+
+// Chamado quando cliente toca/arrasta o mapa
+function _onClienteInteragiu() {
+  _clienteInteragiu = true;
+  if (_timerInatividade) clearTimeout(_timerInatividade);
+  // Após 10s sem tocar, volta a seguir a moto
+  _timerInatividade = setTimeout(() => {
+    _clienteInteragiu = false;
+    _centralizarMoto(900);
+  }, INATIVIDADE_MS);
+}
 
 // Telefone do cliente logado (vem via URL ?phone=xxx ou localStorage do cardápio)
 const meuPhone = getMeuPhone();
@@ -325,46 +403,51 @@ function _suavizarBearing(b) {
   _bearingHist.forEach(v => { s += Math.sin(v*Math.PI/180); co += Math.cos(v*Math.PI/180); });
   return (Math.atan2(s, co) * 180 / Math.PI + 360) % 360;
 }
-function toggle3D() {
-  _modo3D = !_modo3D;
-  const btn = document.getElementById('btn3D');
-  btn.classList.toggle('ativo', _modo3D);
-  btn.textContent = _modo3D ? '2D' : '3D';
-  if (!map || !_mapaCarregado) return;
-  if (_modo3D && posEnt?.lat) {
-    map.easeTo({ center:[posEnt.lon, posEnt.lat], pitch:72, bearing:_bearingAtual, zoom:18.5, duration:900 });
-  } else {
-    map.easeTo({ pitch:0, bearing:0, zoom:15, duration:700 });
-  }
-}
 
 
 async function init() {
   initMap();
-  await carregarDados();
   iniciarRealtime();
-  // GPS-only poll a cada 2s — única fonte de verdade para o status
-  setInterval(atualizarPosEntregador, 2000);
 
-  // Contador visual a cada 1s — atualiza o "sem sinal há Xs" sem depender do polling
+  // Dispara os 2 fetches em paralelo — não espera um para começar o outro
+  const esconderLoading = () => {
+    const ov = document.getElementById('overlayLoading');
+    if (ov) {
+      ov.classList.add('fadeout');
+      setTimeout(() => ov.classList.add('hidden'), 500);
+    }
+  };
+
+  Promise.all([
+    carregarRota(),
+    atualizarPosEntregador()
+  ]).then(() => {
+    renderTudo();
+    esconderLoading();
+  }).catch((err) => {
+    console.error('Erro ao inicializar Stats:', err);
+    esconderLoading(); // Esconde loading mesmo se der erro
+  });
+
+  // Timeout de segurança: esconde loading depois de 8s de qualquer jeito
+  setTimeout(() => {
+    const ov = document.getElementById('overlayLoading');
+    if (ov && !ov.classList.contains('hidden')) {
+      console.warn('Loading forçado a fechar após timeout');
+      ov.classList.add('fadeout');
+      setTimeout(() => ov.classList.add('hidden'), 500);
+    }
+  }, 8000);
+
+  // Polls
+  setInterval(atualizarPosEntregador, 2000);
+  setInterval(carregarRota, 10000);
+
+  // Contador visual a cada 1s
   setInterval(() => {
     if (!posEnt?.ts) return;
-    const tsMs = new Date(posEnt.ts).getTime();
-    const diffMs = Date.now() - tsMs;
-    const online = diffMs < GPS_OFFLINE_THRESH;
-    const dot = document.getElementById('pillDot');
-    const txt = document.getElementById('pillEntTxt');
-    const semSinalEl = document.getElementById('pillSemSinal');
-    if (!dot || !txt || !semSinalEl) return;
-    dot.className = 'pill-dot' + (online ? '' : ' off');
-    txt.textContent = online ? 'GPS ativo' : 'GPS inativo';
-    if (!online) {
-      const segs = Math.floor(diffMs / 1000);
-      semSinalEl.style.display = 'block';
-      semSinalEl.textContent = segs < 60 ? `sem sinal há ${segs}s` : `sem sinal há ${Math.floor(segs/60)}min`;
-    } else {
-      semSinalEl.style.display = 'none';
-    }
+    const diffMs = Date.now() - new Date(posEnt.ts).getTime();
+    atualizarPill(diffMs);
   }, 1000);
 }
 
@@ -380,7 +463,7 @@ function initMap() {
   map = new maplibregl.Map({
     container: 'map',
     style: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
-    center: [FABRICA_LON, FABRICA_LAT], zoom: 14,
+    center: [FABRICA_LON, FABRICA_LAT], zoom: 18.5, pitch: 72, bearing: 0,
     attributionControl: false
   });
 
@@ -402,16 +485,18 @@ function initMap() {
     _entOnline = false;
     _mapaCarregado = true;
 
+    // Listeners de interação do cliente no mapa
+    ['dragstart', 'touchstart', 'wheel', 'dblclick'].forEach(ev => {
+      map.on(ev, _onClienteInteragiu);
+    });
+
     // Mapa pronto — força atualização imediata do GPS e marcadores
     atualizarPosEntregador();
   });
 }
 
 // ── DADOS ─────────────────────────────────────────────────────────────────
-async function carregarDados() {
-  const hoje = new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
-
-  // Busca rota ativa
+async function carregarRota() {
   const { data: rotas } = await sb.from('rotas')
     .select('*')
     .in('status', ['criada', 'em_andamento', 'aguardando'])
@@ -421,21 +506,67 @@ async function carregarDados() {
   rotaAtiva = rotas?.[0] || null;
   paradas = rotaAtiva ? (rotaAtiva.paradas || []).filter(p => !p._meta) : [];
 
-  // Posição do entregador
-  await atualizarPosEntregador();
+  if (!rotaAtiva && _modo3D) _ativar2D(true);
+  renderLista();
+}
 
-  // Renderiza tudo
+// Mantém carregarDados como alias para compatibilidade com Realtime
+async function carregarDados() {
+  await Promise.all([carregarRota(), atualizarPosEntregador()]);
   renderTudo();
 }
 
 async function atualizarPosEntregador() {
+  const fetchOpts = {
+    headers: {
+      'apikey': SUPABASE_KEY,
+      'Authorization': `Bearer ${SUPABASE_KEY}`,
+      'Cache-Control': 'no-cache, no-store',
+      'Pragma': 'no-cache'
+    },
+    cache: 'no-store'
+  };
+
   try {
-    const { data, error } = await sb.from('gps').select('valor').eq('chave', 'entregador_gps').maybeSingle();
-    if (!error) {
-      posEnt = data?.valor ? JSON.parse(data.valor) : null;
+    let novaPosEnt = null;
+
+    // 1️⃣ Tenta primeiro na tabela rotas (só existe quando há rota ativa)
+    const resRotas = await fetch(
+      `${SUPABASE_URL}/rest/v1/rotas?select=gps_lat,gps_lon,gps_ts,gps_precisao&status=in.(criada%2Cem_andamento%2Caguardando)&order=created_at.desc&limit=1`,
+      fetchOpts
+    );
+    const rows = await resRotas.json();
+    const row = rows?.[0];
+    if (row?.gps_lat && row?.gps_lon) {
+      novaPosEnt = { lat: row.gps_lat, lon: row.gps_lon, ts: row.gps_ts, precisao: row.gps_precisao };
+    }
+
+    // 2️⃣ Fallback: tabela gps (sempre salva, mesmo sem rota ativa)
+    if (!novaPosEnt) {
+      const resGps = await fetch(
+        `${SUPABASE_URL}/rest/v1/gps?select=valor&chave=eq.entregador_gps&limit=1`,
+        fetchOpts
+      );
+      const gpsRows = await resGps.json();
+      const gpsValor = gpsRows?.[0]?.valor;
+      if (gpsValor) {
+        const g = typeof gpsValor === 'string' ? JSON.parse(gpsValor) : gpsValor;
+        if (g?.lat && g?.lon) {
+          novaPosEnt = { lat: g.lat, lon: g.lon, ts: g.ts, precisao: g.acc };
+        }
+      }
+    }
+
+    if (novaPosEnt) {
+      const posicaoMudou = !posEnt || posEnt.lat !== novaPosEnt.lat || posEnt.lon !== novaPosEnt.lon;
+      posEnt = novaPosEnt;
+      renderEntregador();
+      if (posicaoMudou) renderLista();
+    } else {
+      posEnt = null;
+      renderEntregador();
     }
   } catch(e) { /* ignora erro de rede */ }
-  renderEntregador();
 }
 
 async function atualizarTudo() {
@@ -456,21 +587,47 @@ async function atualizarTudo() {
   verificarOffline();
 }
 
+// ── HELPER PILL GPS ───────────────────────────────────────────────────────
+function tempoFormatado(diffMs) {
+  const s = Math.floor(diffMs / 1000);
+  if (s < 60)   return `${s}s`;
+  if (s < 3600) return `${Math.floor(s/60)}m`;
+  return `${Math.floor(s/3600)}h`;
+}
+
+function atualizarPill(diffMs) {
+  const dot = document.getElementById('pillDot');
+  const txt = document.getElementById('pillEntTxt');
+  const tempoEl = document.getElementById('pillSemSinal');
+  const pill = document.getElementById('pillEnt');
+  if (!dot || !txt || !tempoEl) return;
+
+  pill.classList.remove('hidden');
+
+  let cor, label;
+  if (!posEnt?.lat || diffMs === null) {
+    cor = 'red'; label = 'Offline';
+    tempoEl.textContent = '';
+  } else if (diffMs < GPS_OFFLINE_THRESH) {
+    if (diffMs < 4000) { cor = 'green'; label = 'Online'; }
+    else               { cor = 'orange'; label = 'Fraco'; }
+    tempoEl.textContent = tempoFormatado(diffMs);
+  } else {
+    cor = 'red'; label = 'Offline';
+    tempoEl.textContent = tempoFormatado(diffMs);
+  }
+
+  dot.className = `pill-dot ${cor}`;
+  txt.className = cor;
+  txt.textContent = label;
+}
 // ── RENDER ENTREGADOR ──────────────────────────────────────────────────────
 function renderEntregador() {
-  const pill = document.getElementById('pillEnt');
-  const dot  = document.getElementById('pillDot');
-  const txt  = document.getElementById('pillEntTxt');
-  const sub  = document.getElementById('headerSub');
-  const semSinalEl = document.getElementById('pillSemSinal');
+  const sub = document.getElementById('headerSub');
 
-  // Sem dados nenhum ainda
   if (!posEnt?.lat) {
-    pill.classList.remove('hidden');
-    dot.className = 'pill-dot off';
-    txt.textContent = 'GPS inativo';
-    semSinalEl.style.display = 'none';
-    sub.textContent = 'entregador offline';
+    atualizarPill(null);
+    sub.textContent = '';
     return;
   }
 
@@ -478,17 +635,7 @@ function renderEntregador() {
   const diffMs = Date.now() - tsMs;
   const online = diffMs < GPS_OFFLINE_THRESH;
 
-  pill.classList.remove('hidden');
-  dot.className = 'pill-dot' + (online ? '' : ' off');
-  txt.textContent = online ? 'GPS ativo' : 'GPS inativo';
-
-  if (!online) {
-    const segs = Math.floor(diffMs / 1000);
-    semSinalEl.style.display = 'block';
-    semSinalEl.textContent = segs < 60 ? `sem sinal há ${segs}s` : `sem sinal há ${Math.floor(segs/60)}min`;
-  } else {
-    semSinalEl.style.display = 'none';
-  }
+  atualizarPill(diffMs);
 
   if (_mapaCarregado && mkEntregador) {
     mkEntregador.setLngLat([posEnt.lon, posEnt.lat]);
@@ -497,12 +644,13 @@ function renderEntregador() {
   // Subtitle
   const entregues = (rotaAtiva?.entregas_realizadas) || 0;
   const total = paradas.length;
-  sub.textContent = total > 0
-    ? `${entregues} de ${total} entregas realizadas`
-    : 'entregador online';
+  sub.textContent = !online
+    ? 'entregador sem sinal'
+    : total > 0
+      ? `${entregues} de ${total} entregas realizadas`
+      : '';
 
-  // Centraliza mapa na primeira vez
-  // Calcular bearing (direção do movimento)
+  // Calcular bearing
   if (_ultimaPosAnterior) {
     const dLat = Math.abs(posEnt.lat - _ultimaPosAnterior[0]);
     const dLon = Math.abs(posEnt.lon - _ultimaPosAnterior[1]);
@@ -513,35 +661,52 @@ function renderEntregador() {
   }
   _ultimaPosAnterior = [posEnt.lat, posEnt.lon];
 
-  // Mostrar botão 3D
-  document.getElementById('btn3D').style.display = 'block';
+  if (!_mapaCarregado) return;
 
-  // Câmera: segue moto em 3D ou centra em 2D
-  if (_mapaCarregado) {
-    if (_modo3D) {
-      map.easeTo({ center:[posEnt.lon, posEnt.lat], bearing:_bearingAtual, pitch:72, zoom:18.5, duration:800, essential:true });
-    } else {
-      map.easeTo({ center:[posEnt.lon, posEnt.lat], zoom:15, duration:600 });
-    }
+  // Sempre segue a moto em 3D — a menos que o cliente esteja interagindo
+  if (!_clienteInteragiu) {
+    _centralizarMoto(800);
   }
+}
+
+// ── MODAL ────────────────────────────────────────────────────────────────
+function abrirModal() {
+  document.getElementById('modalInfo').classList.add('show');
+}
+function fecharModal() {
+  document.getElementById('modalInfo').classList.remove('show');
+}
+function fecharModalFora(e) {
+  if (e.target === document.getElementById('modalInfo')) fecharModal();
 }
 
 // ── RENDER LISTA ───────────────────────────────────────────────────────────
 function renderLista() {
-  const lista = document.getElementById('listaClientes');
-  const resumo = document.getElementById('painelResumo');
-  const cardMeu = document.getElementById('cardMeuPedido');
+  const lista   = document.getElementById('modalLista');
+  const resumo  = document.getElementById('modalResumo');
+  const cardMeu = document.getElementById('modalCardMeu');
+  const badge   = document.getElementById('badgeInfo');
 
   const pendentes = paradas.filter(p => p.status !== 'entregue');
   const entregues = paradas.filter(p => p.status === 'entregue');
   const total = paradas.length;
   const proximaPhone = pendentes[0]?.cliente_phone;
 
+  // Badge no botão ⚠️ — mostra quantos pendentes
+  if (badge) {
+    if (total > 0) {
+      badge.style.display = 'flex';
+      badge.textContent = pendentes.length;
+    } else {
+      badge.style.display = 'none';
+    }
+  }
+
   resumo.textContent = total > 0
     ? `${entregues.length} entregues · ${pendentes.length} restantes`
     : 'Aguardando rota';
 
-  // Card do meu pedido
+  // Card meu pedido
   if (meuPhone) {
     const minha = paradas.find(p => p.cliente_phone === meuPhone);
     if (minha) {
@@ -560,9 +725,9 @@ function renderLista() {
         : (proxima
           ? 'O entregador está na sua direção agora'
           : `${pendAnte} entrega${pendAnte!==1?'s':''} antes de você`);
-      const badge = document.getElementById('meuBadge');
-      badge.textContent = entregue ? 'Entregue' : (proxima ? 'Próximo' : 'Na fila');
-      badge.className = 'status-badge ' + (entregue ? 'badge-entregue' : (proxima ? 'badge-rota' : 'badge-pendente'));
+      const b = document.getElementById('meuBadge');
+      b.textContent = entregue ? 'Entregue' : (proxima ? 'Próximo' : 'Na fila');
+      b.className = 'status-badge ' + (entregue ? 'badge-entregue' : (proxima ? 'badge-rota' : 'badge-pendente'));
     } else {
       cardMeu.style.display = 'none';
     }
@@ -584,39 +749,81 @@ function renderLista() {
     return;
   }
 
-  // Clientes com pedido mostrados por ordem — nome só se show_name=true ou é o próprio
   const html = paradas.map((p, idx) => {
     const entregue = p.status === 'entregue';
     const eu = p.cliente_phone === meuPhone;
     const proxima = p.cliente_phone === proximaPhone && !entregue;
-
     const nomeExibir = eu
       ? (p.nome || 'Você')
       : (p.show_name !== false ? (p.nome || `Cliente ${idx+1}`) : `Cliente ${idx+1}`);
-
     const cls = entregue ? 'entregue' : (eu ? 'eu' : (proxima ? 'proxima' : ''));
-    const badge = entregue
+    const badgeHtml = entregue
       ? '<span class="cli-badge ent">✓ Entregue</span>'
-      : (proxima
-        ? '<span class="cli-badge prox">🛵 Próximo</span>'
-        : `<span class="cli-badge pend">#${idx+1}</span>`);
-
+      : (proxima ? '<span class="cli-badge prox">🛵 Próximo</span>' : `<span class="cli-badge pend">#${idx+1}</span>`);
     const subTxt = entregue ? 'Entregue ✓' : (proxima ? 'Entregador chegando...' : 'Aguardando');
-
     return `<div class="cli-row ${cls}">
       <div class="cli-num">${entregue ? '✓' : idx+1}</div>
       <div class="cli-info">
         <div class="cli-nome">${nomeExibir}</div>
         <div class="cli-sub">${subTxt}</div>
       </div>
-      ${badge}
+      ${badgeHtml}
     </div>`;
   }).join('');
 
   lista.innerHTML = html;
-
-  // Marcadores no mapa
   renderMarcadores();
+}
+
+// Calcula distância em metros entre dois pontos
+function _distM(lat1, lon1, lat2, lon2) {
+  const R = 6371000;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180) * Math.cos(lat2*Math.PI/180) * Math.sin(dLon/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+// Agrupa paradas dentro de 20m e calcula offsets para não sobrepor
+function _calcularOffsets(paradas) {
+  const RAIO = 20; // metros
+  const offsets = {}; // phone → [offsetLat, offsetLon]
+  const visitado = new Set();
+
+  paradas.forEach((p, i) => {
+    if (!p.coords || visitado.has(i)) return;
+    const [lat, lon] = p.coords;
+    if (!lat || !lon) return;
+
+    // Encontra todos no mesmo raio
+    const grupo = [i];
+    paradas.forEach((q, j) => {
+      if (i === j || !q.coords) return;
+      const [qlat, qlon] = q.coords;
+      if (_distM(lat, lon, qlat, qlon) <= RAIO) {
+        grupo.push(j);
+        visitado.add(j);
+      }
+    });
+    visitado.add(i);
+
+    if (grupo.length === 1) {
+      offsets[p.cliente_phone] = [0, 0];
+      return;
+    }
+
+    // Distribui em leque horizontal — ~18m de separação entre cada um
+    // 1 grau lat ≈ 111000m → 18m ≈ 0.000162 graus
+    const passo = 0.000162;
+    const total = grupo.length;
+    const inicio = -((total - 1) / 2) * passo;
+    grupo.forEach((gi, ki) => {
+      const ph = paradas[gi].cliente_phone;
+      offsets[ph] = [0, inicio + ki * passo]; // spread horizontal (lon)
+    });
+  });
+
+  return offsets;
 }
 
 function renderMarcadores() {
@@ -625,28 +832,74 @@ function renderMarcadores() {
     if (!phones.has(ph)) { mkClientes[ph].remove(); delete mkClientes[ph]; }
   });
 
+  const offsets = _calcularOffsets(paradas);
+
   paradas.forEach((p, idx) => {
     if (!p.coords || !p.cliente_phone) return;
     const [lat, lon] = p.coords;
     if (!lat || !lon) return;
 
+    const [oLat, oLon] = offsets[p.cliente_phone] || [0, 0];
+    const finalLat = lat + oLat;
+    const finalLon = lon + oLon;
+
     const entregue = p.status === 'entregue';
-    const eu = p.cliente_phone === meuPhone;
+    const eu       = p.cliente_phone === meuPhone;
 
     const el = document.createElement('div');
-    const _bg = eu ? 'rgba(201,168,76,0.15)' : (entregue ? 'rgba(34,34,34,0.8)' : '#18181f');
-    const _border = eu ? '#c9a84c' : (entregue ? '#2ed573' : '#ffa502');
-    const _op = entregue ? '0.6' : '1';
-    el.style.cssText = `width:34px;height:34px;border-radius:50%;background:${_bg};border:2px solid ${_border};display:flex;align-items:center;justify-content:center;font-size:15px;box-shadow:0 2px 10px rgba(0,0,0,.5);opacity:${_op};`;
-    el.textContent = eu ? '⭐' : (entregue ? '✅' : '🏠');
+    const bg     = eu ? 'rgba(201,168,76,0.18)' : (entregue ? 'rgba(46,213,115,0.18)' : 'rgba(18,18,30,0.88)');
+    const border  = eu ? '#c9a84c'               : (entregue ? '#2ed573'               : 'rgba(255,255,255,0.18)');
+    const opacity = (entregue && !eu) ? '0.55' : '1'; // 'eu' nunca fica transparente
 
+    el.style.cssText = `
+      width:32px;height:32px;border-radius:50%;
+      background:${bg};border:2px solid ${border};
+      display:flex;align-items:center;justify-content:center;
+      font-size:15px;
+      box-shadow:0 3px 12px rgba(0,0,0,.55);
+      opacity:${opacity};
+      transition:opacity .3s;
+      cursor:default;
+      position:relative;
+    `;
+    el.textContent = '👤';
 
-    if (!_mapaCarregado) return; // mapa ainda não pronto
+    // Label "Você" fixo acima do marcador
+    if (eu) {
+      const label = document.createElement('div');
+      label.style.cssText = `
+        position:absolute;bottom:calc(100% + 5px);left:50%;transform:translateX(-50%);
+        background:rgba(201,168,76,0.92);color:#000;
+        font-size:10px;font-weight:800;letter-spacing:0.3px;
+        padding:2px 7px;border-radius:8px;
+        white-space:nowrap;font-family:'DM Sans',sans-serif;
+        box-shadow:0 2px 6px rgba(0,0,0,.4);
+      `;
+      label.textContent = 'Você';
+      el.appendChild(label);
+    }
+
+    // Tag com número da fila (clientes que não sou eu)
+    if (!entregue && !eu) {
+      const tag = document.createElement('div');
+      tag.style.cssText = `
+        position:absolute;top:-9px;left:50%;transform:translateX(-50%);
+        background:#ffa502;color:#000;font-size:9px;font-weight:900;
+        padding:1px 5px;border-radius:6px;font-family:'DM Mono',monospace;
+        white-space:nowrap;
+      `;
+      tag.textContent = `#${idx+1}`;
+      el.appendChild(tag);
+    }
+
+    if (!_mapaCarregado) return;
     if (mkClientes[p.cliente_phone]) {
-      mkClientes[p.cliente_phone].setLngLat([lon, lat]);
+      const old = mkClientes[p.cliente_phone].getElement();
+      old.parentNode?.replaceChild(el, old);
+      mkClientes[p.cliente_phone].setLngLat([finalLon, finalLat]);
     } else {
       mkClientes[p.cliente_phone] = new maplibregl.Marker({ element: el, anchor: 'center' })
-        .setLngLat([lon, lat]).addTo(map);
+        .setLngLat([finalLon, finalLat]).addTo(map);
     }
   });
 }
@@ -665,27 +918,53 @@ function verificarOffline() {
 }
 
 // ── REALTIME ─────────────────────────────────────────────────────────────
+let _realtimeReconectTimer = null;
+
 function iniciarRealtime() {
-  if (realtimeCh) sb.removeChannel(realtimeCh);
-  realtimeCh = sb.channel('stats_cliente')
-    // GPS do entregador — atualiza só a moto, rápido
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'gps',
-        filter: "chave=eq.entregador_gps" }, async () => {
-      await atualizarPosEntregador();
+  if (realtimeCh) { try { sb.removeChannel(realtimeCh); } catch(e) {} }
+  realtimeCh = sb.channel('stats_cliente', {
+    config: { broadcast: { ack: false }, presence: { key: '' } }
+  })
+    // Mudanças de GPS na tabela rotas → atualiza moto + lista imediatamente
+    // NOTA: Realtime NÃO suporta operador "in" — sem filter para garantir que dispara
+    .on('postgres_changes', {
+      event: 'UPDATE', schema: 'public', table: 'rotas'
+    }, async (payload) => {
+      // Se veio dado de GPS novo no payload, aplica direto sem novo fetch
+      const r = payload.new;
+      if (r?.gps_lat && r?.gps_lon) {
+        const novaPosEnt = { lat: r.gps_lat, lon: r.gps_lon, ts: r.gps_ts, precisao: r.gps_precisao };
+        const posicaoMudou = !posEnt || posEnt.lat !== novaPosEnt.lat || posEnt.lon !== novaPosEnt.lon;
+        posEnt = novaPosEnt;
+        renderEntregador();
+        if (posicaoMudou) renderLista(); // sincroniza "Entregador chegando" sem refresh
+      }
+      // Se mudou paradas ou status, recarrega tudo
+      if (r?.paradas || r?.status || r?.phones_entregues) {
+        await carregarDados();
+      }
     })
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'rotas' }, async () => {
-      await carregarDados();
-    })
-    .subscribe();
+    // INSERT/DELETE de rota (início ou fim de rota)
+    .on('postgres_changes', {
+      event: 'INSERT', schema: 'public', table: 'rotas'
+    }, async () => { await carregarDados(); })
+    .on('postgres_changes', {
+      event: 'DELETE', schema: 'public', table: 'rotas'
+    }, async () => { await carregarDados(); })
+    .subscribe((status, err) => {
+      if (status === 'SUBSCRIBED') {
+        // Canal ativo — cancela qualquer tentativa de reconexão pendente
+        if (_realtimeReconectTimer) { clearTimeout(_realtimeReconectTimer); _realtimeReconectTimer = null; }
+      }
+      if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+        // Reconexão agressiva: tenta novamente em 3s
+        if (_realtimeReconectTimer) clearTimeout(_realtimeReconectTimer);
+        _realtimeReconectTimer = setTimeout(() => iniciarRealtime(), 3000);
+      }
+    });
 }
 
 // ── PAINEL ────────────────────────────────────────────────────────────────
-document.getElementById('handle').addEventListener('click', togglePainel);
-document.getElementById('painelTopo').addEventListener('click', togglePainel);
-function togglePainel() {
-  painelAberto = !painelAberto;
-  document.getElementById('painel').classList.toggle('collapsed', !painelAberto);
-}
 
 // ── RENDER TUDO ───────────────────────────────────────────────────────────
 function renderTudo() {
@@ -718,7 +997,9 @@ function tempoRelativo(tsISO) {
 // Quando o usuário volta à aba (mobile pausa timers em background)
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible') {
-    atualizarPosEntregador();
+    // Paralelo: rota + GPS ao mesmo tempo
+    Promise.all([carregarRota(), atualizarPosEntregador()]).then(() => renderTudo());
+    iniciarRealtime();
   }
 });
 
